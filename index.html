@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>梅花易數 · 紫微斗數</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☰</text></svg>">
+</head>
+<body>
+  <div class="app">
+    
+    <!-- 頂部 -->
+    <header class="app-header">
+      <h1 class="app-title">梅花易數</h1>
+      <p class="app-subtitle">時間起卦 · 邵雍算法 · 全程無random</p>
+    </header>
+    
+    <!-- 導航 -->
+    <nav class="nav">
+      <button class="nav-btn active" data-mode="today">今日</button>
+      <button class="nav-btn" data-mode="decision">決策</button>
+      <button class="nav-btn" data-mode="chart">命盤</button>
+      <button class="nav-btn" data-mode="dashboard">紀錄</button>
+    </nav>
+    
+    <!-- ===== 今日面板 ===== -->
+    <div class="panel" data-panel="today">
+      <div class="input-section">
+        <div class="input-title">每日能量卡</div>
+        <div id="card-area">
+          <div class="placeholder">點擊任意處抽取今日能量指引</div>
+        </div>
+      </div>
+      
+      <!-- 快速占卦入口 -->
+      <div class="input-section" style="margin-top:16px">
+        <div class="input-title" style="margin-bottom:12px">或許你想問一件事？</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-secondary" onclick="switchToDecision()">→ 占一卦</button>
+          <button class="btn-secondary" onclick="switchToChart()">→ 查命盤</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ===== 決策面板 ===== -->
+    <div class="panel hidden" data-panel="decision">
+      <form id="decision-form">
+        <div class="input-section">
+          <div class="input-title">起卦方式</div>
+          
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" name="div-type" id="type-time" value="time" checked>
+              <label for="type-time">時間起卦</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="div-type" id="type-number" value="number">
+              <label for="type-number">數字起卦</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" name="div-type" id="type-text" value="text">
+              <label for="type-text">字數起卦</label>
+            </div>
+          </div>
+          
+          <!-- 時間起卦 -->
+          <div id="time-inputs">
+            <div class="form-group">
+              <label class="form-label">請提供起卦的日期與時辰</label>
+              <div class="row">
+                <input type="number" id="input-year" placeholder="年（如 2026）" min="1900" max="2100">
+                <input type="number" id="input-month" placeholder="月（1-12）" min="1" max="12">
+                <input type="number" id="input-day" placeholder="日（1-31）" min="1" max="31">
+                <input type="number" id="input-hour" placeholder="時（0-23）" min="0" max="23">
+              </div>
+              <div class="form-label" style="margin-top:6px;font-size:0.7rem;color:var(--text-dim)">時辰用24小時制，例如：上午9點=9，下午6點=18</div>
+            </div>
+          </div>
+          
+          <!-- 數字起卦 -->
+          <div id="number-inputs" class="hidden">
+            <div class="form-group">
+              <label class="form-label">心中想著問題，隨機報出兩個數字</label>
+              <div class="row">
+                <input type="number" id="input-num-a" placeholder="第一個數字">
+                <input type="number" id="input-num-b" placeholder="第二個數字">
+              </div>
+            </div>
+          </div>
+          
+          <!-- 字數起卦 -->
+          <div id="text-inputs" class="hidden">
+            <div class="form-group">
+              <label class="form-label">輸入任意一句話或問題</label>
+              <input type="text" id="input-text" placeholder="例如：今天的面試會順利嗎">
+            </div>
+          </div>
+          
+          <!-- 場景 -->
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">問事場景</label>
+            <select id="scenario-select">
+              <option value="career">職場轉職 · 事業抉擇</option>
+              <option value="love">情感回訊 · 關係疑慮</option>
+            </select>
+          </div>
+          
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button type="submit" class="btn-primary">起卦</button>
+            <button type="button" id="decision-clear" class="btn-secondary">清空</button>
+          </div>
+        </div>
+      </form>
+      
+      <div class="input-section">
+        <div class="input-title">占卜結果</div>
+        <div id="result-area">
+          <div class="placeholder">在此輸入或選擇起卦方式，獲取卦象指引</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ===== 命盤面板 ===== -->
+    <div class="panel hidden" data-panel="chart">
+      <form id="chart-form">
+        <div class="input-section">
+          <div class="input-title">紫微斗數排盤</div>
+          
+          <div class="form-group">
+            <label class="form-label">出生日期</label>
+            <div class="row">
+              <input type="number" id="birth-year" placeholder="年（如 1990）" min="1900" max="2010">
+              <input type="number" id="birth-month" placeholder="月（1-12）" min="1" max="12">
+              <input type="number" id="birth-day" placeholder="日（1-31）" min="1" max="31">
+              <input type="number" id="birth-hour" placeholder="時（0-23）" min="0" max="23">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">性別</label>
+            <select id="gender-select">
+              <option value="m">男</option>
+              <option value="f">女</option>
+            </select>
+          </div>
+          
+          <div class="form-label" style="margin-bottom:12px;font-size:0.7rem;color:var(--text-dim)">
+            時辰說明：子時 23-01 / 丑時 01-03 / 寅時 03-05 / 卯時 05-07 / 辰時 07-09 / 巳時 09-11
+            <br>午時 11-13 / 未時 13-15 / 申時 15-17 / 酉時 17-19 / 戌時 19-21 / 亥時 21-23
+          </div>
+          
+          <button type="submit" class="btn-primary">排紫微命盤</button>
+        </div>
+      </form>
+      
+      <div id="chart-result">
+        <div class="placeholder">填寫生日，系統將自動計算命盤</div>
+      </div>
+    </div>
+    
+    <!-- ===== 儀表板面板 ===== -->
+    <div class="panel hidden" data-panel="dashboard">
+      <div class="input-section">
+        <div class="input-title">使用統計</div>
+        <div id="stats-area">
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div class="stat-value">—</div>
+              <div class="stat-label">總使用次數</div>
+            </div>
+            <div class="stat-item streak">
+              <div class="stat-value">0天</div>
+              <div class="stat-label">當前連續</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">0天</div>
+              <div class="stat-label">歷史最高</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">—</div>
+              <div class="stat-label">最常用模式</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="dashboard-actions">
+          <button id="export-btn" class="btn-secondary">↓ 匯出JSON</button>
+          <button id="add-review-btn" class="btn-secondary">📝 本週複盤</button>
+          <button id="clear-btn" class="btn-secondary" style="color:var(--red)">🗑 清除資料</button>
+        </div>
+      </div>
+      
+      <div class="input-section">
+        <div class="input-title">最近記錄</div>
+        <div id="records-list">
+          <div class="placeholder">尚無記錄</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 快捷鍵提示 -->
+    <div class="keyboard-hint">
+      <kbd>T</kbd> 今日 &nbsp;
+      <kbd>D</kbd> 決策 &nbsp;
+      <kbd>M</kbd> 命盤 &nbsp;
+      <kbd>S</kbd> 紀錄
+    </div>
+    
+  </div>
+  
+  <script type="module" src="js/app.js"></script>
+  <script>
+    // 快捷入口按鈕（因為 app.js 是 module，需要這樣暴露）
+    window.switchToDecision = function() {
+      document.querySelector('[data-mode="decision"]').click();
+    };
+    window.switchToChart = function() {
+      document.querySelector('[data-mode="chart"]').click();
+    };
+    
+    // 初始化能量卡點擊（模組加載前先處理）
+    document.getElementById('card-area')?.addEventListener('click', function(e) {
+      if (e.target.closest('.refresh-btn') || e.target.id === 'card-refresh') return;
+      // 點擊空白區域觸發占卜或直接抽取
+      const cardArea = document.getElementById('card-area');
+      if (cardArea.querySelector('.placeholder')) {
+        // 抽取第一張卡
+        window.__triggerCardDraw?.();
+      }
+    });
+  </script>
+</body>
+</html>

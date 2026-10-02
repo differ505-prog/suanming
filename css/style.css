@@ -1,0 +1,877 @@
+/* ===== 神秘紫金 · 算命助手 ===== */
+
+/* === CSS 變數 === */
+:root {
+  --bg: #0a0908;
+  --bg-card: #111110;
+  --bg-card-hover: #1a1918;
+  --bg-input: #181715;
+  --border: #2a2825;
+  --border-accent: #c9a84c40;
+  
+  --text: #f0ede6;
+  --text-muted: #7a756d;
+  --text-dim: #4a453f;
+  
+  --accent: #c9a84c;
+  --accent-dim: #c9a84c60;
+  --accent-glow: #c9a84c20;
+  
+  --purple: #6b5b8a;
+  --purple-dim: #6b5b8a50;
+  
+  --red: #8b3a3a;
+  --green: #3a6b4a;
+  
+  --radius: 12px;
+  --radius-sm: 8px;
+  
+  --font-serif: 'Noto Serif TC', 'Songti SC', 'SimSun', Georgia, serif;
+  --font-sans: 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  --glow: 0 0 40px rgba(201,168,76,0.08);
+}
+
+/* === 全域 Reset === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === 背景質感 === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(107,91,138,0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(201,168,76,0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* === 主容器 === */
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* === 頂部 === */
+.app-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.app-title {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+}
+
+.app-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+/* === 導航 === */
+.nav {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 48px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 4px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  padding: 8px 20px;
+  border-radius: 32px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  letter-spacing: 0.05em;
+}
+
+.nav-btn:hover {
+  color: var(--text);
+  background: var(--bg-card-hover);
+}
+
+.nav-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 500;
+}
+
+/* === 面板 === */
+.panel {
+  animation: fadeIn 0.3s ease;
+}
+
+.panel.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* === 輸入區 === */
+.input-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+
+.input-title {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--accent);
+  margin-bottom: 20px;
+  letter-spacing: 0.1em;
+}
+
+/* === 表單元素 === */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.05em;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+select,
+textarea {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  transition: border-color 0.2s;
+  outline: none;
+  appearance: none;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-dim);
+}
+
+select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a756d' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* === 按鈕 === */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+
+.btn-primary:hover {
+  background: #d4b65a;
+  box-shadow: 0 4px 16px rgba(201,168,76,0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 16px;
+}
+
+.btn-secondary:hover {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s;
+}
+
+.btn-ghost:hover {
+  color: var(--text-muted);
+}
+
+/* === 單選 / 多選 === */
+.radio-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.radio-item input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.radio-item label {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.radio-item input:checked + label {
+  color: var(--accent);
+}
+
+/* === 網格佈局 === */
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.row > * { flex: 1; }
+
+/* === 占卜結果 === */
+#result-area {
+  min-height: 200px;
+}
+
+.placeholder {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  padding: 60px 20px;
+  font-family: var(--font-serif);
+  letter-spacing: 0.1em;
+}
+
+.result-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  animation: fadeIn 0.4s ease;
+}
+
+.hexagram-symbol {
+  text-align: center;
+  font-size: 2.5rem;
+  color: var(--accent);
+  margin-bottom: 8px;
+  letter-spacing: 0.3em;
+}
+
+.hexagram-name {
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 1.8rem;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.hexagram-meta {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  letter-spacing: 0.2em;
+}
+
+.yao-sequence {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.yao {
+  font-family: monospace;
+  font-size: 1.1rem;
+  letter-spacing: 0.5em;
+  font-weight: 700;
+}
+
+.yao-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.yao-labels span {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  width: 80px;
+  text-align: center;
+}
+
+.moving-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--accent-glow);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+
+.moving-line .label {
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.moving-line .value {
+  font-size: 0.875rem;
+  color: var(--text);
+}
+
+.hexagram-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+
+.detail-row .label {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  min-width: 40px;
+  letter-spacing: 0.1em;
+}
+
+.detail-row .value {
+  color: var(--text-muted);
+}
+
+.detail-row.highlight .value {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tiyong-desc {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  padding: 16px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  margin-bottom: 24px;
+  line-height: 1.8;
+}
+
+.saying-section {
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+  margin-bottom: 16px;
+}
+
+.saying-tone {
+  font-size: 0.7rem;
+  color: var(--accent);
+  letter-spacing: 0.2em;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.saying-text {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--text);
+  line-height: 2;
+  letter-spacing: 0.05em;
+}
+
+/* === 命盤 === */
+.chart-header {
+  margin-bottom: 24px;
+}
+
+.chart-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chart-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  min-width: 80px;
+}
+
+.ci-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.ci-value {
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.palace-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.palace-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.palace-card:hover {
+  border-color: var(--border-accent);
+  background: var(--bg-card-hover);
+}
+
+.palace-card.palace-ming {
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+.palace-name {
+  font-size: 1.1rem;
+  color: var(--text);
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.palace-di {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.palace-stars {
+  font-size: 0.75rem;
+  color: var(--accent);
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.empty-palace {
+  color: var(--text-dim);
+}
+
+.palace-hua {
+  font-size: 0.7rem;
+  color: var(--purple);
+  margin-top: 4px;
+}
+
+.palace-expanded {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  text-align: left;
+}
+
+.palace-expanded.hidden {
+  display: none;
+}
+
+.palace-stars-desc,
+.palace-hua-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.chart-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+/* === 能量卡 === */
+#card-area {
+  display: flex;
+  justify-content: center;
+}
+
+.energy-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px 36px;
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--glow);
+}
+
+.card-period {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  color: var(--accent);
+  margin-bottom: 20px;
+  letter-spacing: 0.1em;
+}
+
+.card-text {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  color: var(--text);
+  line-height: 2;
+  margin-bottom: 20px;
+}
+
+.card-action {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 28px;
+  line-height: 1.6;
+}
+
+.refresh-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-sans);
+}
+
+.refresh-btn:hover {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* === 儀表板 === */
+#stats-area {
+  margin-bottom: 24px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.stat-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-item.streak {
+  border-color: var(--accent-dim);
+  background: var(--accent-glow);
+}
+
+.stat-value {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.stat-item.streak .stat-value {
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* === 記錄列表 === */
+#records-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.record-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.record-item:last-child {
+  border-bottom: none;
+}
+
+.record-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.record-mode {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.record-date {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.record-detail {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.record-tag {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.record-tag.gua {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.record-sub {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* === 儀表板操作區 === */
+.dashboard-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+/* === 響應式 === */
+@media (max-width: 640px) {
+  .app {
+    padding: 24px 16px 60px;
+  }
+  
+  .app-title {
+    font-size: 1.5rem;
+  }
+  
+  .nav {
+    width: 100%;
+    justify-content: space-around;
+    border-radius: var(--radius);
+  }
+  
+  .nav-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+  
+  .row {
+    flex-direction: column;
+  }
+  
+  .palace-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .result-card,
+  .energy-card {
+    padding: 24px 20px;
+  }
+  
+  .hexagram-symbol {
+    font-size: 2rem;
+  }
+  
+  .hexagram-name {
+    font-size: 1.5rem;
+  }
+}
+
+/* === 滾動條美化 === */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* === 選項卡 / 次要面板 === */
+.panel-sub {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* === 快速鍵提示 === */
+.keyboard-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 40px;
+  letter-spacing: 0.1em;
+}
+
+.keyboard-hint kbd {
+  display: inline-block;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin: 0 2px;
+}
+
+/* === 四化標記 === */
+.palace-hua {
+  font-size: 0.7rem;
+  color: var(--purple);
+  margin-top: 3px;
+}
+
+/* === 快捷操作 === */
+.shortcut-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
