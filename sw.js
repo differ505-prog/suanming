@@ -3,7 +3,7 @@
  * 策略：Cache-First（優先讀緩存，失敗再網路）
  */
 
-const CACHE_NAME = 'suanming-v2';
+const CACHE_NAME = 'suanming-v3';
 const ASSETS = [
   '/',
   '/index.html',

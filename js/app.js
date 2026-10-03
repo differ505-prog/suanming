@@ -21,6 +21,7 @@ import { getDailyVibe, hasCheckedIn, getCheckInStreak, checkIn } from './card.js
 let currentMode = 'today';
 let currentResult = null;
 let userBirthData = null; // 命宮主星資料
+let birthData = null; // 當前命盤輸入資料
 
 // ===== 埋點輔助（localStorage bridge）=====
 // 用法：track('divination', { method: 'time', hexagram: '乾', feedback: 'up' })
