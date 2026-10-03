@@ -6,8 +6,12 @@
   <title>梅花易數 · 紫微斗數</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0908">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='30' fill='%230a0908'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='110' fill='%23c9a84c'>☰</text></svg>">
   <link rel="stylesheet" href="css/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☰</text></svg>">
 </head>
 <body>
   <div class="app">
@@ -213,24 +217,20 @@
   
   <script type="module" src="js/app.js"></script>
   <script>
-    // 快捷入口按鈕（因為 app.js 是 module，需要這樣暴露）
+    // 快捷入口按鈕
     window.switchToDecision = function() {
       document.querySelector('[data-mode="decision"]').click();
     };
     window.switchToChart = function() {
       document.querySelector('[data-mode="chart"]').click();
     };
-    
-    // 初始化能量卡點擊（模組加載前先處理）
-    document.getElementById('card-area')?.addEventListener('click', function(e) {
-      if (e.target.closest('.refresh-btn') || e.target.id === 'card-refresh') return;
-      // 點擊空白區域觸發占卜或直接抽取
-      const cardArea = document.getElementById('card-area');
-      if (cardArea.querySelector('.placeholder')) {
-        // 抽取第一張卡
-        window.__triggerCardDraw?.();
-      }
-    });
+
+    // Service Worker 註冊（漸進增強，不影響主流程）
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>

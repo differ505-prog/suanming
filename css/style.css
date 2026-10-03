@@ -875,3 +875,169 @@ select {
   gap: 8px;
   margin-top: 12px;
 }
+
+/* ===== 新功能樣式 ===== */
+
+/* === 主星認領 Modal === */
+#claim-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+#claim-modal.open {
+  display: flex;
+}
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+}
+.modal-content {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius);
+  padding: 32px 28px;
+  max-width: 380px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow), var(--glow);
+  text-align: center;
+}
+.modal-header { margin-bottom: 24px; }
+.modal-icon { font-size: 3rem; margin-bottom: 8px; }
+.modal-header h2 {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.modal-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.modal-body .form-group { margin-bottom: 12px; text-align: left; }
+.modal-body .form-label { font-size: 0.8rem; color: var(--text-muted); }
+.modal-body input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+.modal-body input:focus { outline: none; border-color: var(--accent); }
+.form-hint {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.6;
+}
+.modal-result { text-align: center; }
+.result-star-icon { font-size: 4rem; margin-bottom: 8px; }
+.result-star-name {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.result-star-type {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.result-star-desc {
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 8px;
+  padding: 12px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+}
+.result-star-strength {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+.hidden { display: none !important; }
+
+/* === 個人化稱呼 === */
+.personal-greeting {
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 8px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+/* === 晨間氣場徽章 === */
+.card-morning-badge {
+  font-size: 0.75rem;
+  color: #e8c96a;
+  background: rgba(201,168,76,0.12);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+/* === 交叉解讀 === */
+.cross-reading-section {
+  margin: 16px 0;
+  padding: 16px;
+  background: rgba(107,91,138,0.1);
+  border: 1px solid var(--purple-dim);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.cross-reading-header {
+  font-size: 0.9rem;
+  color: var(--accent);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.cross-reading-type {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.cross-reading-text {
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.cross-reading-relation {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+/* === chart-ming-star === */
+.chart-ming-star {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 12px;
+  letter-spacing: 0.05em;
+}
+
+/* === claim-entry-btn === */
+.claim-entry-btn {
+  animation: subtle-pulse 3s ease-in-out infinite;
+}
+@keyframes subtle-pulse {
+  0%, 100% { border-color: var(--accent); }
+  50% { border-color: var(--accent-dim); }
+}

@@ -1,6 +1,7 @@
 /**
- * 每日能量卡系統
+ * 每日能量卡系統 v2.0
  * 28張：7天 × 4時段（晨/午/暮/夜）
+ * 全程無 Math.random，用日期+時辰seed驅動同一日同一卡
  */
 
 const ENERGY_CARDS = [
@@ -42,18 +43,20 @@ const ENERGY_CARDS = [
   { id: 'n8', period: '夜', title: '最後的思想', text: '睡前的最後一個念頭，會在睡眠中繼續生長。不是吸引力法則，是大腦神經元的夜間重組。選擇一個讓你安心的想法入睡。', action: '今晚選擇一個讓自己安心的想法帶入睡' }
 ];
 
-// 根據時段抽取卡片
+// 根據時段取得當日卡片（確定性seed，無random）
 function getCardByPeriod(period) {
   const filtered = ENERGY_CARDS.filter(c => c.period === period);
   if (filtered.length === 0) return ENERGY_CARDS[0];
-  
-  // 用日期作 seed，同一天同一時段同一張卡
+
   const today = new Date();
-  const seed = (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate() + period.charCodeAt(0)) % filtered.length;
-  return filtered[seed];
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+  const shichenIdx = Math.floor((today.getHours() + 1) / 2) % 12;
+  // 確定性seed：年內日序 × 31 + 時辰index，確保同一天同一時段同一張卡
+  const seed = ((dayOfYear * 31 + shichenIdx) % filtered.length + filtered.length) % filtered.length;
+  return filtered[Math.abs(seed)];
 }
 
-// 自動根據當前時間判斷時段
+// 自動根據當前時間判斷時段並抽取卡片
 function getCurrentCard() {
   const hour = new Date().getHours();
   let period;
@@ -61,15 +64,67 @@ function getCurrentCard() {
   else if (hour >= 12 && hour < 17) period = '午';
   else if (hour >= 17 && hour < 21) period = '暮';
   else period = '夜';
-  
+
   return getCardByPeriod(period);
 }
 
-// 隨機抽一張（用於手動刷新）
+// 手動刷新：取得另一張卡（確定性輪換，非random）
 function drawRandomCard(excludeId = null) {
   const pool = ENERGY_CARDS.filter(c => c.id !== excludeId);
-  const idx = Math.floor(Math.random() * pool.length); // 這裡允許 random 因為是卡片抽取不是卦象
-  return pool[idx];
+  if (pool.length === 0) return ENERGY_CARDS[0];
+
+  const today = new Date();
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
+  const minuteOfDay = today.getHours() * 60 + today.getMinutes();
+  // 隨時間微調seed，實現「刷新獲得不同卡」的效果
+  const seed = ((dayOfYear * 1440 + minuteOfDay) % pool.length + pool.length) % pool.length;
+  return pool[Math.abs(seed)];
 }
 
-export { ENERGY_CARDS, getCardByPeriod, getCurrentCard, drawRandomCard };
+// 從 storage 讀取當日已保存的卡片
+function getTodayCard() {
+  const data = loadData();
+  if (data.cardDate === today() && data.currentCard) {
+    return data.currentCard;
+  }
+  return null;
+}
+
+// 保存當日卡片到 storage
+function saveTodayCard(card) {
+  const data = loadData();
+  data.currentCard = card;
+  data.cardDate = today();
+  saveData(data);
+}
+
+// 工具函式（供內部調用）
+function loadData() {
+  try {
+    const raw = localStorage.getItem('suanming_v1');
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+function saveData(data) {
+  try {
+    localStorage.setItem('suanming_v1', JSON.stringify(data));
+  } catch {}
+}
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export {
+  ENERGY_CARDS,
+  getCardByPeriod,
+  getCurrentCard,
+  drawRandomCard,
+  getTodayCard,
+  saveTodayCard
+};

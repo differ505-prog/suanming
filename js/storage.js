@@ -15,7 +15,8 @@ function getDefaultData() {
     cardDate: null,     // 能量卡日期
     weeklyReview: [],   // 週末複盤
     reflections: [],    // 決策回看記錄
-    totalDays: 0        // 總使用天數
+    totalDays: 0,       // 總使用天數
+    userBirthData: null // 用戶命宮主星資料 {year, month, day, hour, mingStar, mingStars}
   };
 }
 
@@ -200,4 +201,17 @@ function getReflections() {
   return (loadData().reflections || []).slice(-10).reverse();
 }
 
-export { loadData, saveData, updateStreak, addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard, getTodayCard, addWeeklyReview, getWeekNumber, addReflection, getReflections, today };
+// 保存用戶命宮主星資料
+function saveUserBirthData(birthData, mingStar, mingStars) {
+  const data = loadData();
+  data.userBirthData = { ...birthData, mingStar, mingStars, savedAt: today() };
+  saveData(data);
+}
+
+// 讀取用戶命宮主星資料
+function getUserBirthData() {
+  const data = loadData();
+  return data.userBirthData || null;
+}
+
+export { loadData, saveData, updateStreak, addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard, getTodayCard, addWeeklyReview, getWeekNumber, addReflection, getReflections, today, saveUserBirthData, getUserBirthData };

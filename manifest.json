@@ -1,0 +1,26 @@
+{
+  "name": "梅花易數 · 紫微斗數",
+  "short_name": "算命",
+  "description": "邵雍算法 · 雙引擎解讀 · 無需註冊",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0908",
+  "theme_color": "#c9a84c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230a0908'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='300' fill='%23c9a84c'>☰</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='30' fill='%230a0908'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='120' fill='%23c9a84c'>☰</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["lifestyle", "entertainment"],
+  "lang": "zh-TW"
+}

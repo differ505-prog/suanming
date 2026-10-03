@@ -1,34 +1,41 @@
 /**
- * 算命助手 — 主程式
+ * 算命助手 — 主程式 v2.0
+ * 含：主星認領、交叉解讀、晨間氣場、個人化稱呼
  */
 
-import { divinate, getAuspicious, HEXAGRAMS } from './meihua.js';
-import { castZiwei, generateReading, PALACES } from './ziwei.js';
+import { divinate, getAuspicious } from './meihua.js';
+import { castZiwei, generateReading, getCrossReading, STAR_TRAITS } from './ziwei.js';
 import { getSaying } from './sayings.js';
 import { getCurrentCard, drawRandomCard, saveTodayCard, getTodayCard } from './card.js';
-import { addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard as saveCard, getTodayCard as loadCard, addWeeklyReview, addReflection, getReflections } from './storage.js';
+import {
+  addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON,
+  saveTodayCard as saveCard, getTodayCard as loadCard,
+  addWeeklyReview, addReflection, getReflections,
+  saveUserBirthData, getUserBirthData
+} from './storage.js';
 
 // ===== 全域狀態 =====
-let currentMode = 'today'; // today | decision | chart
+let currentMode = 'today';
 let currentResult = null;
-let isLeapMonth = false;
-let birthData = {};
+let userBirthData = null; // 命宮主星資料
 
 // ===== DOM 初始化 =====
 document.addEventListener('DOMContentLoaded', () => {
+  // 讀取用戶命宮資料
+  userBirthData = getUserBirthData();
+
   initNav();
   initTabs();
   initTodayMode();
   initDecisionMode();
   initChartMode();
   loadDashboard();
-  
+
   // 如果有今日卡片，直接顯示；否則自動抽取
   const savedCard = getTodayCard();
   if (savedCard) {
     showCard(savedCard);
   } else {
-    // 第一次訪問自動抽取一張
     const firstCard = getCurrentCard();
     showCard(firstCard);
     saveTodayCard(firstCard);
@@ -39,21 +46,16 @@ document.addEventListener('DOMContentLoaded', () => {
 function initNav() {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const mode = btn.dataset.mode;
-      switchMode(mode);
+      switchMode(btn.dataset.mode);
     });
   });
 }
 
 function switchMode(mode) {
   currentMode = mode;
-  
-  // 更新 nav 按鈕狀態
   document.querySelectorAll('.nav-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
-  
-  // 更新面板顯示
   document.querySelectorAll('.panel').forEach(p => {
     p.classList.toggle('hidden', p.dataset.panel !== mode);
   });
@@ -62,9 +64,9 @@ function switchMode(mode) {
 // ===== 今日模式 =====
 function initTodayMode() {
   const cardArea = document.getElementById('card-area');
-  const refreshBtn = document.getElementById('card-refresh');
-  
-  // 抽取按鈕
+  if (!cardArea) return;
+
+  // 點擊刷新
   cardArea.addEventListener('click', (e) => {
     if (e.target.closest('.refresh-btn') || e.target.id === 'card-refresh') {
       const card = drawRandomCard(currentResult?.card?.id);
@@ -78,8 +80,19 @@ function initTodayMode() {
 function showCard(card) {
   const area = document.getElementById('card-area');
   if (!area) return;
+
+  // 晨間特別標題
+  const hour = new Date().getHours();
+  const isMorning = hour >= 6 && hour < 12;
+  const morningBadge = isMorning ? '<div class="card-morning-badge">🌅 今日晨間氣場</div>' : '';
+
+  // 個人化稱呼
+  const personalGreeting = getPersonalGreeting();
+
   area.innerHTML = `
     <div class="energy-card">
+      ${morningBadge}
+      ${personalGreeting ? `<div class="personal-greeting">${personalGreeting}</div>` : ''}
       <div class="card-period">${card.period}</div>
       <div class="card-title">${card.title}</div>
       <div class="card-text">${card.text}</div>
@@ -88,24 +101,163 @@ function showCard(card) {
     </div>
   `;
   currentResult = { card };
-  initTodayMode(); // 重新綁事件
+  initTodayMode();
+}
+
+// 個人化稱呼：根據命宮主星生成問候語
+function getPersonalGreeting() {
+  if (!userBirthData) return '';
+  const star = userBirthData.mingStar;
+  const traits = STAR_TRAITS[star];
+  if (!traits) return '';
+
+  const greetings = [
+    `【${star}坐命】的專屬決策所，今日來了`,
+    `今日的${star}星人，準備好遇見今天的卦象了`,
+    `${star}人專屬的時空能量場，歡迎回來`,
+  ];
+  // 用日期作 seed 固定選擇
+  const idx = (new Date().getDate() + star.charCodeAt(0)) % greetings.length;
+  return greetings[idx];
+}
+
+// ===== 主星認領 Modal =====
+// 建立 Modal DOM（懶載，只建立一次）
+function ensureClaimModal() {
+  if (document.getElementById('claim-modal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'claim-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" id="claim-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-icon">⭐</div>
+        <h2>認領你的命宮主星</h2>
+        <p class="modal-subtitle">解鎖專屬於你的性格底色，從此每次占卜都有雙引擎護航</p>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">出生年份</label>
+          <input type="number" id="claim-year" placeholder="如 1990" min="1900" max="2010">
+        </div>
+        <div class="form-group">
+          <label class="form-label">出生月份</label>
+          <input type="number" id="claim-month" placeholder="1-12" min="1" max="12">
+        </div>
+        <div class="form-group">
+          <label class="form-label">出生日期</label>
+          <input type="number" id="claim-day" placeholder="1-31" min="1" max="31">
+        </div>
+        <div class="form-group">
+          <label class="form-label">出生時辰（24小時制）</label>
+          <input type="number" id="claim-hour" placeholder="如 8" min="0" max="23">
+          <div class="form-hint">子時=23 / 丑時=1 / 寅時=3 / 卯時=5 / 辰時=7<br>巳時=9 / 午時=11 / 未時=13 / 申時=15 / 酉時=17<br>戌時=19 / 亥時=21</div>
+        </div>
+        <button class="btn-primary" id="claim-submit">解鎖我的主星</button>
+        <button class="btn-secondary" id="claim-skip" style="margin-top:8px">稍後再說</button>
+      </div>
+      <div class="modal-result hidden" id="claim-result">
+        <div class="result-star-icon">⭐</div>
+        <div class="result-star-name" id="result-star-name"></div>
+        <div class="result-star-type" id="result-star-type"></div>
+        <div class="result-star-desc" id="result-star-desc"></div>
+        <div class="result-star-strength" id="result-star-strength"></div>
+        <button class="btn-primary" id="claim-close">開始使用</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // 事件綁定
+  document.getElementById('claim-skip')?.addEventListener('click', closeClaimModal);
+  document.getElementById('claim-overlay')?.addEventListener('click', closeClaimModal);
+  document.getElementById('claim-submit')?.addEventListener('click', handleClaimSubmit);
+  document.getElementById('claim-close')?.addEventListener('click', () => {
+    closeClaimModal();
+    // 刷新今日面板
+    const savedCard = getTodayCard() || getCurrentCard();
+    showCard(savedCard);
+  });
+}
+
+function openClaimModal() {
+  ensureClaimModal();
+  document.getElementById('claim-modal').classList.add('open');
+  document.getElementById('claim-result').classList.add('hidden');
+  document.getElementById('claim-result').previousElementSibling?.classList.remove('hidden');
+}
+
+function closeClaimModal() {
+  document.getElementById('claim-modal')?.classList.remove('open');
+}
+
+function handleClaimSubmit() {
+  const year = parseInt(document.getElementById('claim-year').value);
+  const month = parseInt(document.getElementById('claim-month').value);
+  const day = parseInt(document.getElementById('claim-day').value);
+  const hour = parseInt(document.getElementById('claim-hour').value) || 8;
+
+  if (!year || !month || !day) {
+    alert('請填寫完整出生日期');
+    return;
+  }
+
+  try {
+    const result = castZiwei(year, month, day, hour);
+    const mingStar = result.mingStar || '天同';
+    const mingStars = result.mingStars || [];
+    const traits = STAR_TRAITS[mingStar];
+
+    // 保存到 localStorage
+    saveUserBirthData({ year, month, day, hour }, mingStar, mingStars);
+    userBirthData = { year, month, day, hour, mingStar, mingStars };
+
+    // 顯示結果
+    document.getElementById('result-star-name').textContent = `你是【${mingStar}】星人`;
+    document.getElementById('result-star-type').textContent = `性格類型：${traits?.type || '未知'}`;
+    document.getElementById('result-star-desc').textContent = traits?.desc || '';
+    document.getElementById('result-star-strength').textContent = `核心優勢：${traits?.strength || '待探索'} · 成長功課：${traits?.weakness || '待發現'}`;
+
+    document.getElementById('claim-result').classList.remove('hidden');
+    document.querySelector('.modal-body > .form-group')?.parentElement?.classList.add('hidden');
+    document.querySelector('.modal-body > button')?.parentElement?.classList.add('hidden');
+  } catch (e) {
+    alert('排盤失敗，請檢查日期是否正確');
+  }
+}
+
+// 顯示認領按鈕（當沒有認領過時，在今日面板顯示引導）
+function showClaimButtonIfNeeded() {
+  if (userBirthData) return; // 已經認領過
+  const cardArea = document.getElementById('card-area');
+  if (!cardArea) return;
+
+  // 在 energy-card 後面加一個認領入口
+  const existingBtn = cardArea.querySelector('.claim-entry-btn');
+  if (existingBtn) return;
+
+  const btn = document.createElement('button');
+  btn.className = 'claim-entry-btn btn-secondary';
+  btn.textContent = '⭐ 認領你的命宮主星，解鎖雙引擎解讀';
+  btn.style.cssText = 'margin-top:12px; width:100%; font-size:0.85rem; border: 1px solid var(--accent); color: var(--accent);';
+  btn.addEventListener('click', openClaimModal);
+  cardArea.appendChild(btn);
 }
 
 // ===== 決策模式 =====
 function initDecisionMode() {
   const form = document.getElementById('decision-form');
   if (!form) return;
-  
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     handleDivination();
   });
-  
-  // 清空按鈕
+
   const clearBtn = document.getElementById('decision-clear');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
-      document.getElementById('result-area').innerHTML = '<div class="placeholder">在此輸入或選擇起卦方式</div>';
+      document.getElementById('result-area').innerHTML = '<div class="placeholder">在此輸入或選擇起卦方式，獲取卦象指引</div>';
       currentResult = null;
     });
   }
@@ -114,52 +266,37 @@ function initDecisionMode() {
 function handleDivination() {
   const type = document.querySelector('input[name="div-type"]:checked')?.value;
   const scenario = document.querySelector('#scenario-select')?.value || 'career';
-  
+
   let input;
-  
+
   if (type === 'time') {
     const year = parseInt(document.getElementById('input-year').value);
     const month = parseInt(document.getElementById('input-month').value);
     const day = parseInt(document.getElementById('input-day').value);
     const hour = parseInt(document.getElementById('input-hour').value);
-    
-    if (!year || !month || !day) {
-      alert('請填寫完整日期時間');
-      return;
-    }
+    if (!year || !month || !day) { alert('請填寫完整日期時間'); return; }
     input = { type: 'time', year, month, day, hour: hour || 0 };
-    
+
   } else if (type === 'number') {
     const a = parseInt(document.getElementById('input-num-a').value);
     const b = parseInt(document.getElementById('input-num-b').value);
-    if (!a || !b) {
-      alert('請填寫兩個數字');
-      return;
-    }
+    if (!a || !b) { alert('請填寫兩個數字'); return; }
     input = { type: 'number', a, b };
-    
+
   } else if (type === 'text') {
     const text = document.getElementById('input-text').value.trim();
-    if (!text) {
-      alert('請輸入文字');
-      return;
-    }
+    if (!text) { alert('請輸入文字'); return; }
     input = { type: 'text', text };
   }
-  
+
   const result = divinate(input);
   if (!result) return;
-  
+
   currentResult = { ...result, scenario };
-  
-  // 判定吉凶
   const isGood = getAuspicious(result.hexagram, result.tiyong) === 'good';
   const saying = getSaying(scenario, isGood);
-  
-  // 渲染結果
+
   renderDivinationResult(result, saying);
-  
-  // 記錄
   addRecord({
     mode: '梅花易數',
     method: result.method,
@@ -173,34 +310,51 @@ function handleDivination() {
 function renderDivinationResult(result, saying) {
   const area = document.getElementById('result-area');
   if (!area) return;
-  
-  const { hexagram, upperTrigram, lowerTrigram, movingLine, movingLineText, tiyong, hugua, biangua, guaci, sequence } = result;
-  
-  // 構建六爻顯示
+
+  const { hexagram, upperTrigram, lowerTrigram, movingLine, movingLineText, tiyong, hugua, biangua, sequence } = result;
+
   const linesHTML = sequence.map(line => {
     const symbol = line.yang ? '—' : '–';
     const movingMark = line.moving ? '●' : ' ';
     const color = line.moving ? 'var(--accent)' : 'var(--text-muted)';
     return `<span class="yao" style="color:${color}">${movingMark}${symbol}${symbol}${movingMark}</span>`;
   }).join('');
-  
+
+  // === 交叉解讀：梅花卦象 × 命宮主星 ===
+  let crossReadingHTML = '';
+  if (userBirthData && userBirthData.mingStar) {
+    const cross = getCrossReading(hexagram, tiyong, userBirthData.mingStar);
+    if (cross) {
+      crossReadingHTML = `
+        <div class="cross-reading-section">
+          <div class="cross-reading-header">⭐ 【${cross.star}提醒】</div>
+          <div class="cross-reading-type">${cross.type} · ${cross.traits}</div>
+          <div class="cross-reading-text">${cross.reading}</div>
+          <div class="cross-reading-relation">
+            今日卦象給你的功課：${cross.relation === '助力' ? '趁勢而為' : cross.relation === '阻力' ? '先緩後動' : '保持平常心'}
+          </div>
+        </div>
+      `;
+    }
+  }
+
   area.innerHTML = `
     <div class="result-card">
       <div class="hexagram-symbol">${upperTrigram.symbol} / ${lowerTrigram.symbol}</div>
       <div class="hexagram-name">${hexagram.name}卦</div>
       <div class="hexagram-meta">${hexagram.guaci}</div>
-      
+
       <div class="yao-sequence">${linesHTML}</div>
       <div class="yao-labels">
         <span>六</span><span>五</span><span>四</span>
         <span>三</span><span>二</span><span>初</span>
       </div>
-      
+
       <div class="moving-line">
         <span class="label">動爻</span>
         <span class="value">${movingLine}爻 — ${movingLineText}</span>
       </div>
-      
+
       <div class="hexagram-detail">
         <div class="detail-row">
           <span class="label">上卦</span>
@@ -223,16 +377,18 @@ function renderDivinationResult(result, saying) {
           <span class="value">${biangua ? biangua.name + '卦' : '無變爻'}</span>
         </div>
       </div>
-      
+
       <div class="tiyong-desc">${tiyong.desc}</div>
-      
+
+      ${crossReadingHTML}
+
       <div class="saying-section">
         <div class="saying-tone">【${saying.tone}】</div>
         <div class="saying-text">${saying.text}</div>
       </div>
-      
-      <button class="btn-secondary" onclick="openReflection(${Date.now()})">
-        記下這個決定 → 7天後回來複盤
+
+      <button class="btn-secondary" onclick="openReflection(${Date.now()})" style="margin-top:12px">
+        ↪ 記下這個決定 → 7天後回來複盤
       </button>
     </div>
   `;
@@ -242,7 +398,7 @@ function renderDivinationResult(result, saying) {
 function initChartMode() {
   const form = document.getElementById('chart-form');
   if (!form) return;
-  
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     handleChartCast();
@@ -255,22 +411,26 @@ function handleChartCast() {
   const day = parseInt(document.getElementById('birth-day').value);
   const hour = parseInt(document.getElementById('birth-hour').value) || 12;
   const gender = document.getElementById('gender-select')?.value || 'm';
-  
+
   if (!year || !month || !day) {
     alert('請填寫完整生日');
     return;
   }
-  
+
   birthData = { year, month, day, hour, gender };
-  
+
   try {
     const result = castZiwei(year, month, day, hour);
     const readings = generateReading(result);
-    
     currentResult = { type: 'ziwei', data: result, readings };
-    
     renderZiweiResult(result, readings);
-    
+
+    // 如果用戶還沒認領過主星，自動儲存
+    if (!userBirthData) {
+      saveUserBirthData({ year, month, day, hour }, result.mingStar, result.mingStars);
+      userBirthData = { year, month, day, hour, mingStar: result.mingStar, mingStars: result.mingStars };
+    }
+
     addRecord({
       mode: '紫微斗數',
       birth: `${year}/${month}/${day} ${hour}時`,
@@ -286,12 +446,12 @@ function handleChartCast() {
 function renderZiweiResult(result, readings) {
   const area = document.getElementById('chart-result');
   if (!area) return;
-  
-  const { yearGZ, dayGZ, mingGongDi, wuxingJu, fourHua } = result;
-  
-  // 基本資訊
+
+  const { yearGZ, dayGZ, mingGongDi, wuxingJu, fourHua, mingStar } = result;
+
   const headerHTML = `
     <div class="chart-header">
+      ${mingStar ? `<div class="chart-ming-star">命宮主星：${mingStar}</div>` : ''}
       <div class="chart-info-row">
         <div class="chart-info-item">
           <span class="ci-label">國曆</span>
@@ -320,8 +480,7 @@ function renderZiweiResult(result, readings) {
       </div>
     </div>
   `;
-  
-  // 12宮排列（4×3 grid）
+
   const palacesHTML = readings.map(r => `
     <div class="palace-card ${r.palace === '命' ? 'palace-ming' : ''}" onclick="togglePalace(this)">
       <div class="palace-name">${r.palace}</div>
@@ -334,7 +493,7 @@ function renderZiweiResult(result, readings) {
       </div>
     </div>
   `).join('');
-  
+
   area.innerHTML = headerHTML + `
     <div class="palace-grid">${palacesHTML}</div>
     <div class="chart-note">點擊宮位展開解讀</div>
@@ -350,11 +509,17 @@ window.togglePalace = function(el) {
 function loadDashboard() {
   const stats = getStats();
   const records = getRecords().slice(0, 10);
-  
+  const ud = getUserBirthData();
+
   const statsEl = document.getElementById('stats-area');
   if (statsEl) {
     statsEl.innerHTML = `
       <div class="stat-grid">
+        ${ud && ud.mingStar ? `
+        <div class="stat-item" style="grid-column:1/-1; text-align:center; margin-bottom:8px">
+          <div class="stat-value" style="color:var(--accent)">⭐ ${ud.mingStar}坐命</div>
+        </div>
+        ` : ''}
         <div class="stat-item">
           <div class="stat-value">${stats.totalUses}</div>
           <div class="stat-label">總使用次數</div>
@@ -378,7 +543,7 @@ function loadDashboard() {
       </div>
     `;
   }
-  
+
   const recordsEl = document.getElementById('records-list');
   if (recordsEl) {
     if (records.length === 0) {
@@ -400,12 +565,11 @@ function loadDashboard() {
       `).join('');
     }
   }
-  
-  // 綁定匯出 / 清除按鈕
+
   const exportBtn = document.getElementById('export-btn');
   const clearBtn = document.getElementById('clear-btn');
   const reviewBtn = document.getElementById('add-review-btn');
-  
+
   if (exportBtn) exportBtn.addEventListener('click', exportJSON);
   if (clearBtn) clearBtn.addEventListener('click', () => {
     if (confirm('確定清除所有資料？此操作不可恢復。')) {
@@ -424,7 +588,6 @@ function loadDashboard() {
 
 // ===== 面板初始化（tabs）=====
 function initTabs() {
-  // 決策模式的起卦方式切換
   document.querySelectorAll('input[name="div-type"]').forEach(radio => {
     radio.addEventListener('change', (e) => {
       document.getElementById('time-inputs').classList.toggle('hidden', e.target.value !== 'time');
@@ -438,42 +601,55 @@ function initTabs() {
 window.openReflection = function(recordId) {
   const text = prompt('描述你做的這個決定：');
   if (text) {
-    const result = confirm('後續有結果了嗎？');
-    addReflection(recordId, text, result ? '有結果' : '待觀察');
+    addReflection(recordId, text, '待觀察');
     alert('已記錄，7天後可在儀表板回顧');
   }
 };
 
 // ===== 匯出所有記錄 =====
-window.exportAllData = function() {
-  exportJSON();
-};
+window.exportAllData = function() { exportJSON(); };
+window.clearAllData = function() { clearAll(); loadDashboard(); };
 
-window.clearAllData = function() {
-  clearAll();
-  loadDashboard();
-};
-
-// ===== 快捷鍵：及時抽取 =====
+// ===== 快捷鍵 =====
 document.addEventListener('keydown', (e) => {
-  // 按 D：決策模式
-  if (e.key === 'd' && !e.metaKey && !e.ctrlKey && !e.target.matches('input, textarea')) {
-    switchMode('decision');
-  }
-  // 按 T：今日模式
-  if (e.key === 't' && !e.metaKey && !e.ctrlKey && !e.target.matches('input, textarea')) {
-    switchMode('today');
-  }
-  // 按 M：命盤模式
-  if (e.key === 'm' && !e.metaKey && !e.ctrlKey && !e.target.matches('input, textarea')) {
-    switchMode('chart');
-  }
-  // 按 S：儀表板
-  if (e.key === 's' && !e.metaKey && !e.ctrlKey && !e.target.matches('input, textarea')) {
+  if (e.target.matches('input, textarea')) return;
+  if (e.key === 'd') switchMode('decision');
+  if (e.key === 't') switchMode('today');
+  if (e.key === 'm') switchMode('chart');
+  if (e.key === 's') {
     document.querySelector('.nav-btn[data-mode="dashboard"]')?.click();
-    if (currentMode !== 'dashboard') switchMode('dashboard');
     loadDashboard();
   }
 });
 
-export { switchMode, loadDashboard };
+// ===== PWA 安裝提示 =====
+window.addEventListener('load', () => {
+  // 延遲顯示認領按鈕（等卡片渲染完）
+  setTimeout(showClaimButtonIfNeeded, 300);
+
+  // PWA 安裝提示
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // 在今日面板顯示安裝提示
+    const cardArea = document.getElementById('card-area');
+    if (cardArea && !document.getElementById('pwa-install-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'pwa-install-btn';
+      btn.className = 'btn-secondary';
+      btn.style.cssText = 'margin-top:8px; width:100%; font-size:0.8rem;';
+      btn.textContent = '📱 安裝到手機主畫面';
+      btn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') btn.remove();
+        }
+      });
+      cardArea.appendChild(btn);
+    }
+  });
+});
+
+export { switchMode, loadDashboard, openClaimModal };
