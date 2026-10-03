@@ -773,19 +773,22 @@ function renderZiweiResult(result, readings) {
   const area = document.getElementById('chart-result');
   if (!area) return;
 
-  const { yearGZ, dayGZ, mingGongDi, wuxingJu, fourHua, mingStar, mingStars } = result;
+  const { yearGZ, dayGZ, mingGongDi, wuxingJu, fourHua, mingStars } = result;
 
-  // === 迴字形排列：將 readings 按地支固定位置 ===
-  // 外圈固定地支位置（逆時針）：
-  //   第1行: 巳(0) 午(1) 未(2) 申(3)
-  //   第2行: 辰(10) 中間  中間  酉(4)
-  //   第3行: 卯(9) 寅(8) 丑(7) 子(6)
-  const DI_ZHI_ORDER = ['巳','午','未','申','酉','戌','亥','子','丑','寅','卯','辰'];
+  // === 順時針閉環排列 ===
+  // grid 4×4，底邊從左至右：寅→丑→子→亥，右上角連回頂邊
+  // grid 位置對照：
+  //   (0,0)巳  (0,1)午  (0,2)未  (0,3)申
+  //   (1,0)辰                    (1,3)酉
+  //   (2,0)卯                    (2,3)戌
+  //   (3,0)寅  (3,1)醜  (3,2)子  (3,3)亥
+  // 對宮：子↔午、卯↔酉、辰↔戌、醜↔未、寅↔申、巳↔亥
+  const DI_ZHI_ORDER = ['巳','午','未','申','辰','酉','卯','戌','寅','醜','子','亥'];
   // 地支 → 地支陣列 index（用於定位格子）
   const diToGridPos = {
     '巳':0,'午':1,'未':2,'申':3,
-    '酉':4,'戌':5,'亥':6,'子':7,
-    '丑':8,'寅':9,'卯':10,'辰':11
+    '辰':4,'酉':5,'卯':6,'戌':7,
+    '寅':8,'醜':9,'子':10,'亥':11
   };
 
   // 建立地支→宮位資料的映射
@@ -800,7 +803,7 @@ function renderZiweiResult(result, readings) {
   // === 頂部摘要（簡化版，供滾動時參考）===
   const headerHTML = `
     <div class="chart-header">
-      ${mingStar ? `<div class="chart-ming-star" onclick="showArchetypeCard('${mingStar}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStar} ⭐</div>` : ''}
+      ${mingStars?.[0] ? `<div class="chart-ming-star" onclick="showArchetypeCard('${mingStars[0]}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStars.join('·')} ⭐</div>` : ''}
       <div class="chart-info-row">
         <div class="chart-info-item">
           <span class="ci-label">國曆</span>
@@ -853,7 +856,7 @@ function renderZiweiResult(result, readings) {
   // === 中央摘要卡（2×2 區域）===
   const centerHTML = `
     <div class="chart-center">
-      <div class="center-name">${mingStar ? mingStar + '坐命' : '命主'}</div>
+      <div class="center-name">${mingStars?.[0] ? mingStars[0] + '坐命' : '命主'}</div>
       <div class="center-birth">${birthData.year}/${birthData.month}/${birthData.day}</div>
       <div class="center-wuxing">${wuxingJu}</div>
       <div class="center-stars">${mingStars?.join('·') || ''}</div>
