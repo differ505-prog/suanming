@@ -70,10 +70,47 @@ const SIHUA_TABLE = {
   '癸': { huaLu: '忌', huaQuan: '科', huaKe: '權', huaJi: '祿' }
 };
 
+// ===== 時辰轉換：24小時制 → iztro timeIndex（0-12）=====
+/**
+ * 將 24 小時制數字轉換為 iztro 的 timeIndex（0-12）
+ *
+ * iztro TIME_RANGE 對照（子丑寅卯...由 timeIndex 決定）：
+ *  timeIndex=0  → 00:00~01:00（早子時）
+ *  timeIndex=1  → 01:00~03:00（丑時）
+ *  timeIndex=2  → 03:00~05:00（寅時）
+ *  timeIndex=3  → 05:00~07:00（卯時）
+ *  timeIndex=4  → 07:00~09:00（辰時）
+ *  timeIndex=5  → 09:00~11:00（巳時）  ← hour=9 用戶最常輸入
+ *  timeIndex=6  → 11:00~13:00（午時）
+ *  timeIndex=7  → 13:00~15:00（未時）
+ *  timeIndex=8  → 15:00~17:00（申時）
+ *  timeIndex=9  → 17:00~19:00（酉時）
+ *  timeIndex=10 → 19:00~21:00（戌時）
+ *  timeIndex=11 → 21:00~23:00（亥時）
+ *  timeIndex=12 → 23:00~00:00（晚子時）
+ *
+ * 正確公式：(hour + 1) // 2
+ *  hour=0  → (0+1)//2=0  ✅
+ *  hour=1  → (1+1)//2=1  ✅ 丑時
+ *  hour=9  → (9+1)//2=5  ✅ 巳時
+ *  hour=23 → special case → 12 ✅ 晚子時
+ *
+ * @param {number} hour - 24 小時制（0-23）
+ * @returns {number} timeIndex（0-12）
+ */
+function hourToTimeIndex(hour) {
+  if (hour === 0)  return 0;   // 00:00 早子時
+  if (hour === 23) return 12;  // 23:00 晚子時
+  return Math.floor((hour + 1) / 2);  // 其餘：hour+1 再除以 2
+}
+
 // ===== 主排盤函數（完整向後相容）=====
 function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') {
   const dateStr = `${birthYear}-${birthMonth}-${birthDay}`;
-  const astrolabe = astro.astrolabeBySolarDate(dateStr, birthHour, gender, true, 'zh-TW');
+  // 關鍵修復：將 24 小時制轉為 iztro timeIndex（0-12）
+  // 之前 Bug：直接傳 birthHour=9，導致 iztro 把 9 當成 timeIndex=9（酉時）而非 timeIndex=5（巳時）
+  const timeIndex = hourToTimeIndex(birthHour);
+  const astrolabe = astro.astrolabeBySolarDate(dateStr, timeIndex, gender, true, 'zh-TW');
 
   // === 命宮主星 ===
   const mingStar = astrolabe.soul || null;
@@ -131,24 +168,32 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     const majorStars = palace.majorStars || [];
     palaces[internalName].stars = majorStars.map(s => s.name);
 
-    // 四化星
+    // 四化星（取星曜的四化標記）
+    // mutagen 可能為字串（'祿'/'權'/'科'/'忌'）或物件 {type, star}
     const fourHua = [];
     for (const star of majorStars) {
       if (star.mutagen) {
-        fourHua.push(star.mutagen);
+        const huaType = typeof star.mutagen === 'string' ? star.mutagen : star.mutagen.type;
+        if (huaType) fourHua.push(huaType);
       }
     }
     palaces[internalName].fourHua = fourHua;
 
-    // 宮位地支
+    // 宮位地支（直接從 iztro palace 取得，最準確）
     palaces[internalName].di = palace.earthlyBranch || '';
   }
 
   // === 命宮地支 ===
-  const mingGongDi = palaces['命']?.di || '申';
+  // 關鍵修復：直接從 astrolabe 讀取，不依賴 palace 映射
+  // earthlyBranchOfSoulPalace 是 iztro 計算命宮時的標準欄位
+  const mingGongDi = astrolabe.earthlyBranchOfSoulPalace
+    || palaces['命']?.di
+    || '子';
 
-  // === 日干四化表 ===
-  const fourHuaTable = SIHUA_TABLE[dayGZ.gan] || SIHUA_TABLE['甲'];
+  // === 生年四化表（以年干為準）===
+  // 關鍵修復：原本用 dayGZ.gan（日干）是錯的，應以 yearGZ.gan（年干）為準
+  // 生年四化口訣：「甲廉破武陽、乙陰同機……」
+  const fourHuaTable = SIHUA_TABLE[yearGZ.gan] || SIHUA_TABLE['甲'];
 
   return {
     lunar: { year: birthYear, month: birthMonth, day: birthDay },

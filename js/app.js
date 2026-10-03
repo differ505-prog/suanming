@@ -773,8 +773,31 @@ function renderZiweiResult(result, readings) {
   const area = document.getElementById('chart-result');
   if (!area) return;
 
-  const { yearGZ, dayGZ, mingGongDi, wuxingJu, fourHua, mingStar } = result;
+  const { yearGZ, dayGZ, mingGongDi, wuxingJu, fourHua, mingStar, mingStars } = result;
 
+  // === 迴字形排列：將 readings 按地支固定位置 ===
+  // 外圈固定地支位置（逆時針）：
+  //   第1行: 巳(0) 午(1) 未(2) 申(3)
+  //   第2行: 辰(10) 中間  中間  酉(4)
+  //   第3行: 卯(9) 寅(8) 丑(7) 子(6)
+  const DI_ZHI_ORDER = ['巳','午','未','申','酉','戌','亥','子','丑','寅','卯','辰'];
+  // 地支 → 地支陣列 index（用於定位格子）
+  const diToGridPos = {
+    '巳':0,'午':1,'未':2,'申':3,
+    '酉':4,'戌':5,'亥':6,'子':7,
+    '丑':8,'寅':9,'卯':10,'辰':11
+  };
+
+  // 建立地支→宮位資料的映射
+  const palaceByDi = {};
+  for (const r of readings) {
+    palaceByDi[r.di] = r;
+  }
+
+  // 依地支順序生成 12 格（對應 grid 位置 0-11）
+  const orderedPalaces = DI_ZHI_ORDER.map(di => palaceByDi[di] || { palace:'', di, stars:[], hua:[], starsDesc:'', huaDesc:'' });
+
+  // === 頂部摘要（簡化版，供滾動時參考）===
   const headerHTML = `
     <div class="chart-header">
       ${mingStar ? `<div class="chart-ming-star" onclick="showArchetypeCard('${mingStar}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStar} ⭐</div>` : ''}
@@ -807,21 +830,48 @@ function renderZiweiResult(result, readings) {
     </div>
   `;
 
-  const palacesHTML = readings.map(r => `
-    <div class="palace-card ${r.palace === '命' ? 'palace-ming' : ''}" onclick="togglePalace(this)">
-      <div class="palace-name">${r.palace}</div>
-      <div class="palace-di">${r.di}</div>
-      <div class="palace-stars">${r.stars.length > 0 ? r.stars.join('·') : '<span class="empty-palace">空</span>'}</div>
-      ${r.hua.length > 0 ? `<div class="palace-hua">${r.hua.join('·')}</div>` : ''}
-      <div class="palace-expanded hidden">
-        <div class="palace-stars-desc">${r.starsDesc}</div>
-        <div class="palace-hua-desc">${r.huaDesc || '本宮無四化'}</div>
+  // === 宮位卡片（依地支順序）===
+  const palacesHTML = orderedPalaces.map(r => {
+    const isMing = r.palace === '命';
+    const starsStr = r.stars && r.stars.length > 0
+      ? r.stars.join('·')
+      : '<span class="empty-palace">空</span>';
+    return `
+      <div class="palace-card ${isMing ? 'palace-ming' : ''}" onclick="togglePalace(this)" data-di="${r.di}" data-palace="${r.palace}">
+        <div class="palace-name">${r.palace}</div>
+        <div class="palace-di">${r.di}</div>
+        <div class="palace-stars">${starsStr}</div>
+        ${r.hua && r.hua.length > 0 ? `<div class="palace-hua">${r.hua.join('·')}</div>` : ''}
+        <div class="palace-expanded hidden">
+          <div class="palace-stars-desc">${r.starsDesc || ''}</div>
+          <div class="palace-hua-desc">${r.huaDesc || '本宮無四化'}</div>
+        </div>
       </div>
+    `;
+  }).join('');
+
+  // === 中央摘要卡（2×2 區域）===
+  const centerHTML = `
+    <div class="chart-center">
+      <div class="center-name">${mingStar ? mingStar + '坐命' : '命主'}</div>
+      <div class="center-birth">${birthData.year}/${birthData.month}/${birthData.day}</div>
+      <div class="center-wuxing">${wuxingJu}</div>
+      <div class="center-stars">${mingStars?.join('·') || ''}</div>
+      <div class="center-four-hua">
+        <span class="hua-lu">${fourHua.huaLu}</span>·
+        <span class="hua-quan">${fourHua.huaQuan}</span>·
+        <span class="hua-ke">${fourHua.huaKe}</span>·
+        <span class="hua-ji">${fourHua.huaJi}</span>
+      </div>
+      <div class="center-gan-zhi">${yearGZ.gan}${yearGZ.zhi} · ${dayGZ.gan}${dayGZ.zhi}</div>
     </div>
-  `).join('');
+  `;
 
   area.innerHTML = headerHTML + `
-    <div class="palace-grid">${palacesHTML}</div>
+    <div class="palace-grid">
+      ${palacesHTML}
+      ${centerHTML}
+    </div>
     <div class="chart-note">點擊宮位展開解讀</div>
   `;
 }
