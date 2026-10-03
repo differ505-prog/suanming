@@ -198,5 +198,9 @@ export {
   getCurrentCard,
   drawRandomCard,
   getTodayCard,
-  saveTodayCard
+  saveTodayCard,
+  getDailyVibe,
+  checkIn,
+  hasCheckedIn,
+  getCheckInStreak
 };
