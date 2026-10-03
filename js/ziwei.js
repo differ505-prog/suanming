@@ -164,9 +164,15 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     const internalName = PALACE_NAME_MAP[palace.name];
     if (!internalName) continue;
 
-    // 提取主星名稱
+    // 提取主星名稱（攜帶 brightness + mutagen 供渲染層使用）
     const majorStars = palace.majorStars || [];
-    palaces[internalName].stars = majorStars.map(s => s.name);
+    palaces[internalName].stars = majorStars.map(s => ({
+      name: s.name,
+      brightness: s.brightness || null,
+      mutagen: s.mutagen
+        ? (typeof s.mutagen === 'string' ? s.mutagen : (s.mutagen.type || null))
+        : null
+    }));
 
     // 四化星（取星曜的四化標記）
     // mutagen 可能為字串（'祿'/'權'/'科'/'忌'）或物件 {type, star}
@@ -181,6 +187,13 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
 
     // 宮位地支（直接從 iztro palace 取得，最準確）
     palaces[internalName].di = palace.earthlyBranch || '';
+
+    // 副星、輔星（字串格式，供桃花/貴人星統計用）
+    palaces[internalName].minorStars = (palace.minorStars || []).map(s => s.name || s);
+    palaces[internalName].adjectiveStars = (palace.adjectiveStars || []).map(s => s.name || s);
+
+    // 十二長生位
+    palaces[internalName].changsheng12 = palace.changsheng12 || '';
   }
 
   // === 命宮地支 ===
@@ -190,13 +203,48 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     || palaces['命']?.di
     || '子';
 
+  // === 身宮：找到身宮所在的宮位及其主星 ===
+  const shenPalaceName = astrolabe.bodyPalaceName || '疾厄';  // iztro 預設
+  const shenPalace = astrolabe.palaces.find(p =>
+    p.name === shenPalaceName ||
+    PALACE_NAME_MAP[p.name] === shenPalaceName ||
+    p.earthlyBranch === astrolabe.earthlyBranchOfBodyPalace
+  );
+  const shenPalaceStars = shenPalace
+    ? shenPalace.majorStars.map(s => ({
+        name: s.name,
+        brightness: s.brightness || null,
+        mutagen: s.mutagen
+          ? (typeof s.mutagen === 'string' ? s.mutagen : (s.mutagen.type || null))
+          : null
+      }))
+    : [];
+
   // === 生年四化表（以年干為準）===
   // 關鍵修復：原本用 dayGZ.gan（日干）是錯的，應以 yearGZ.gan（年干）為準
   // 生年四化口訣：「甲廉破武陽、乙陰同機……」
   const fourHuaTable = SIHUA_TABLE[yearGZ.gan] || SIHUA_TABLE['甲'];
 
+  // === 大限資料 ===
+  const horoscope = astrolabe.horoscope();
+  const currentDecadal = horoscope?.decadal || null;
+  // 構造完整 12 宮大限名稱（從 decadal 的 index 出發，遍歷 12 宮）
+  let decadalPalaceNames = [];
+  if (currentDecadal && currentDecadal.palaceNames) {
+    // iztro 的 decadal.palaceNames 是 12 宮對應的「大限宮位名稱」陣列
+    decadalPalaceNames = currentDecadal.palaceNames;
+  } else if (astrolabe.palaces && astrolabe.palaces.length === 12) {
+    // Fallback: 依序取 12 宮名稱
+    decadalPalaceNames = astrolabe.palaces.map(p => PALACE_NAME_MAP[p.name] || p.name);
+  }
+
   return {
     lunar: { year: birthYear, month: birthMonth, day: birthDay },
+    lunarDateStr: astrolabe.rawDates?.lunarDate
+      ? `${astrolabe.rawDates.lunarDate.lunarYear}年${astrolabe.rawDates.lunarDate.lunarMonth}月${astrolabe.rawDates.lunarDate.lunarDay}日`
+      : null,
+    zodiac: astrolabe.zodiac || null,   // 馬/龍/蛇...
+    sign: astrolabe.sign || null,       // 雙子座/牡羊座...
     hourZhi,
     yearGZ,
     dayGZ,
@@ -207,7 +255,16 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     mingStar,
     mingStars: palaces['命']?.stars || [],
     shenStar,
+    shenPalaceName,          // 身宮所在宮位名（如「疾厄」）
+    shenPalaceStars,         // 身宮主星（物件格式）
     fourHua: fourHuaTable,
+    currentDecadal: currentDecadal ? {
+      index: currentDecadal.index ?? 0,
+      name: currentDecadal.name || '',
+      heavenlyStem: currentDecadal.heavenlyStem || '',
+      earthlyBranch: currentDecadal.earthlyBranch || '',
+      palaceNames: decadalPalaceNames
+    } : null,
     _astrolabe: astrolabe
   };
 }
@@ -219,16 +276,22 @@ function generateReading(ziweiResult) {
 
   for (const [palaceName, data] of Object.entries(palaces)) {
     const stars = data.stars || [];
+    // stars 現為物件陣列 [{name, brightness, mutagen}]
+    const starNames = stars.map(s => (typeof s === 'string' ? s : s.name));
     const hua = data.fourHua || [];
-    const meanings = stars.map(s => STAR_MEANINGS[s] || '').filter(Boolean);
+    const meanings = starNames.map(s => STAR_MEANINGS[s] || '').filter(Boolean);
 
     readings.push({
       palace: palaceName,
       di: data.di,
-      stars,
+      stars,          // 完整物件 [{name, brightness, mutagen}]
+      starNames,      // 字串陣列 ["紫微","天機"]
+      minorStars: data.minorStars || [],
+      adjectiveStars: data.adjectiveStars || [],
+      changsheng12: data.changsheng12 || '',
       hua,
-      starsDesc: stars.length > 0
-        ? `${stars.join('、')}，${meanings.join('；')}`
+      starsDesc: starNames.length > 0
+        ? `${starNames.join('、')}，${meanings.join('；')}`
         : '空宮，本宮無主星',
       huaDesc: hua.length > 0 ? hua.join('、') : ''
     });

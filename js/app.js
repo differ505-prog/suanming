@@ -801,10 +801,23 @@ function renderZiweiResult(result, readings) {
   const orderedPalaces = DI_ZHI_ORDER.map(di => palaceByDi[di] || { palace:'', di, stars:[], hua:[], starsDesc:'', huaDesc:'' });
 
   // === 頂部摘要（簡化版，供滾動時參考）===
+  // mingStars 現在是 [{name, brightness, mutagen}] 格式
+  const mingStarsForHeader = (mingStars || []).map(s => {
+    if (typeof s === 'string') return s;
+    const badge = s.brightness
+      ? `<span class="brightness-badge ${getBrightnessClass(s.brightness)}">${s.brightness}</span>`
+      : '';
+    return `${s.name}${badge}`;
+  }).join('');
+
   const headerHTML = `
     <div class="chart-header">
-      ${mingStars?.[0] ? `<div class="chart-ming-star" onclick="showArchetypeCard('${mingStars[0]}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStars.join('·')} ⭐</div>` : ''}
+      ${mingStars && mingStars.length > 0 ? `<div class="chart-ming-star" onclick="showArchetypeCard('${typeof mingStars[0] === 'string' ? mingStars[0] : mingStars[0]?.name || ''}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStarsForHeader} ⭐</div>` : ''}
       <div class="chart-info-row">
+        <div class="chart-info-item" style="flex-basis: 100%;">
+          <span class="ci-label">出生</span>
+          <span class="ci-value">${result.lunarDateStr || ''} ${result.zodiac ? '· ' + result.zodiac + '屬' : ''} ${result.sign ? '· ' + result.sign : ''}</span>
+        </div>
         <div class="chart-info-item">
           <span class="ci-label">國曆</span>
           <span class="ci-value">${birthData.year}/${birthData.month}/${birthData.day}</span>
@@ -822,6 +835,10 @@ function renderZiweiResult(result, readings) {
           <span class="ci-value">${mingGongDi}</span>
         </div>
         <div class="chart-info-item">
+          <span class="ci-label">身宮</span>
+          <span class="ci-value">${result.shenPalaceName || '—'} ${result.shenStar || ''}</span>
+        </div>
+        <div class="chart-info-item">
           <span class="ci-label">五行局</span>
           <span class="ci-value">${wuxingJu}</span>
         </div>
@@ -836,16 +853,29 @@ function renderZiweiResult(result, readings) {
   // === 宮位卡片（依地支順序）===
   const palacesHTML = orderedPalaces.map(r => {
     const isMing = r.palace === '命';
-    const starsStr = r.stars && r.stars.length > 0
-      ? r.stars.join('·')
+    // stars 現為 [{name, brightness, mutagen}] 格式，fallback 為字串
+    const starsStr = (r.stars && r.stars.length > 0)
+      ? r.stars.map(s => {
+          if (typeof s === 'string') return s;
+          const brightness = s.brightness
+            ? `<span class="brightness-badge ${getBrightnessClass(s.brightness)}">${s.brightness}</span>`
+            : '';
+          const mutagen = s.mutagen
+            ? `<span class="mutagen-inline ${getMutagenClass(s.mutagen)}">${s.mutagen}</span>`
+            : '';
+          return `${s.name}${brightness}${mutagen}`;
+        }).join('·')
       : '<span class="empty-palace">空</span>';
+    // 十二長生 tooltip
+    const tooltipTitle = `${r.palace}宮${r.changsheng12 ? ' · ' + r.changsheng12 : ''}`;
     return `
-      <div class="palace-card ${isMing ? 'palace-ming' : ''}" onclick="togglePalace(this)" data-di="${r.di}" data-palace="${r.palace}">
+      <div class="palace-card ${isMing ? 'palace-ming' : ''}" onclick="openPalaceDetail('${r.di}', '${r.palace}')" data-di="${r.di}" data-palace="${r.palace}" title="${tooltipTitle}">
         <div class="palace-name">${r.palace}</div>
         <div class="palace-di">${r.di}</div>
         <div class="palace-stars">${starsStr}</div>
         ${r.hua && r.hua.length > 0 ? `<div class="palace-hua">${r.hua.join('·')}</div>` : ''}
         <div class="palace-expanded hidden">
+          ${r.changsheng12 ? `<div class="palace-changsheng">長生位：${r.changsheng12}</div>` : ''}
           <div class="palace-stars-desc">${r.starsDesc || ''}</div>
           <div class="palace-hua-desc">${r.huaDesc || '本宮無四化'}</div>
         </div>
@@ -854,12 +884,20 @@ function renderZiweiResult(result, readings) {
   }).join('');
 
   // === 中央摘要卡（2×2 區域）===
+  // mingStars 中央卡顯示（支援物件格式）
+  const mingStarsCenter = (mingStars || []).map(s => {
+    if (typeof s === 'string') return s;
+    const b = s.brightness ? `<span class="brightness-sm ${getBrightnessClass(s.brightness)}">${s.brightness}</span>` : '';
+    const m = s.mutagen ? `<span class="mutagen-sm ${getMutagenClass(s.mutagen)}">${s.mutagen}</span>` : '';
+    return `${s.name}${b}${m}`;
+  }).join('·');
+
   const centerHTML = `
     <div class="chart-center">
-      <div class="center-name">${mingStars?.[0] ? mingStars[0] + '坐命' : '命主'}</div>
+      <div class="center-name">${mingStars && mingStars.length > 0 ? (typeof mingStars[0] === 'string' ? mingStars[0] : mingStars[0]?.name) + '坐命' : '命主'}</div>
       <div class="center-birth">${birthData.year}/${birthData.month}/${birthData.day}</div>
       <div class="center-wuxing">${wuxingJu}</div>
-      <div class="center-stars">${mingStars?.join('·') || ''}</div>
+      <div class="center-stars">${mingStarsCenter}</div>
       <div class="center-four-hua">
         <span class="hua-lu">${fourHua.huaLu}</span>·
         <span class="hua-quan">${fourHua.huaQuan}</span>·
@@ -870,12 +908,40 @@ function renderZiweiResult(result, readings) {
     </div>
   `;
 
-  area.innerHTML = headerHTML + `
+  // === 當前大限計算 ===
+  const age = birthData ? new Date().getFullYear() - birthData.year : 30;
+  const ageIndex = Math.min(Math.max(Math.floor(age / 10), 0), 6);
+  const currentDecadal = result.currentDecadal;
+  const decadalPalaceNames = currentDecadal?.palaceNames || [];
+  const currentDecadalPalace = decadalPalaceNames[ageIndex] || decadalPalaceNames[0] || '命';
+  const decadalAgeStart = Math.floor(age / 10) * 10;
+  const decadalAgeEnd = decadalAgeStart + 9;
+
+  const decadalBannerHTML = currentDecadal ? `
+    <div class="decadal-banner">
+      <div class="decadal-label">⚡ 當前大限</div>
+      <div class="decadal-info">
+        <span class="decadal-gz">${currentDecadal.heavenlyStem}${currentDecadal.earthlyBranch}</span>
+        <span class="decadal-palace">走 ${currentDecadalPalace} 宮</span>
+        <span class="decadal-ages">${decadalAgeStart}-${decadalAgeEnd}歲</span>
+      </div>
+    </div>
+  ` : '';
+
+  area.innerHTML = headerHTML + decadalBannerHTML + `
     <div class="palace-grid">
       ${palacesHTML}
       ${centerHTML}
     </div>
-    <div class="chart-note">點擊宮位展開解讀</div>
+    <div class="chart-enhancement-tabs hidden" id="chart-enhancement-tabs">
+      <button class="enhancement-tab active" onclick="showEnhancementTab('decadal')">大限時間軸</button>
+      <button class="enhancement-tab" onclick="showEnhancementTab('surrounded')">三方四正</button>
+      <button class="enhancement-tab" onclick="showEnhancementTab('minor')">桃花·貴人星</button>
+    </div>
+    <div id="enhancement-decadal" class="enhancement-content hidden"></div>
+    <div id="enhancement-surrounded" class="enhancement-content hidden"></div>
+    <div id="enhancement-minor" class="enhancement-content hidden"></div>
+    <div class="chart-note">點擊宮位查看三方四正</div>
   `;
 }
 
@@ -1040,5 +1106,209 @@ window.addEventListener('load', () => {
     }
   });
 });
+
+// ===== 四化 inline Helper =====
+function getMutagenClass(m) {
+  if (!m) return '';
+  const map = { '祿': 'mutagen-lu', '權': 'mutagen-quan', '科': 'mutagen-ke', '忌': 'mutagen-ji' };
+  return map[m] || '';
+}
+
+// ===== Enhancement Tabs =====
+window.showEnhancementTab = function(tab) {
+  document.querySelectorAll('.enhancement-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.enhancement-content').forEach(c => c.classList.add('hidden'));
+  document.querySelector(`[onclick="showEnhancementTab('${tab}')"]`)?.classList.add('active');
+  const content = document.getElementById(`enhancement-${tab}`);
+  if (content) {
+    content.classList.remove('hidden');
+    // 填充內容（lazy render）
+    if (tab === 'decadal') content.innerHTML = buildDecadalTimeline(currentResult?.data, birthData?.year);
+    if (tab === 'minor') content.innerHTML = buildMinorStarsPanel(currentResult?.readings);
+  }
+  // 顯示 tab bar
+  document.getElementById('chart-enhancement-tabs')?.classList.remove('hidden');
+};
+
+// ===== 大限時間軸 =====
+function buildDecadalTimeline(data, birthYear) {
+  if (!data || !birthYear) return '<div class="placeholder">無大限資料</div>';
+  const decadal = data.currentDecadal;
+  if (!decadal || !decadal.palaceNames) return '<div class="placeholder">無大限資料</div>';
+
+  const startIdx = decadal.index || 0;
+  const segments = [];
+  const ageNow = new Date().getFullYear() - birthYear;
+  const currentSegmentIdx = Math.floor(ageNow / 10);
+
+  for (let i = 0; i < 7; i++) {
+    const ageStart = birthYear + i * 10;
+    const ageEnd   = ageStart + 9;
+    const ages = `${ageStart}-${ageEnd}`;
+    const palIdx = (startIdx + i) % 12;
+    const palace = decadal.palaceNames[palIdx] || '命';
+    const isCurrent = i === currentSegmentIdx;
+    segments.push({ ages, palace, isCurrent });
+  }
+
+  return `
+    <div class="decadal-timeline">
+      ${segments.map(s => `
+        <div class="decadal-segment ${s.isCurrent ? 'current' : ''}">
+          <div class="decadal-ages-label">${s.ages}</div>
+          <div class="decadal-bar">
+            <div class="decadal-palace-label">${s.isCurrent ? '⚡ ' : ''}${s.palace}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ===== 三方四正 Modal =====
+const REVERSE_PALACE_MAP = {
+  '命':'命宮','兄':'兄弟','夫妻':'夫妻','子女':'子女',
+  '財帛':'財帛','疾厄':'疾厄','遷移':'遷移','奴僕':'僕役',
+  '事業':'官祿','田宅':'田宅','福德':'福德','父母':'父母'
+};
+
+const PALACE_INDEX_MAP = {
+  '命宮':0,'兄弟':1,'夫妻':2,'子女':3,'財帛':4,'疾厄':5,
+  '遷移':6,'僕役':7,'官祿':8,'田宅':9,'福德':10,'父母':11
+};
+
+window.openPalaceDetail = function(di, palaceName) {
+  const astrolabe = currentResult?.data?._astrolabe;
+  if (!astrolabe) return;
+
+  const iztroName = REVERSE_PALACE_MAP[palaceName] || palaceName;
+  const palaceIdx = PALACE_INDEX_MAP[iztroName] ?? 0;
+
+  let surr;
+  try { surr = astrolabe.surroundedPalaces(palaceIdx); } catch { return; }
+  if (!surr) return;
+
+  const buildPalaceHTML = (p) => {
+    if (!p) return '';
+    const majorNames = (p.majorStars || []).map(s => s.name);
+    const minorNames = (p.minorStars || []).map(s => s.name + '[附]');
+    const allNames = [...majorNames, ...minorNames];
+    const starsStr = allNames.length > 0 ? allNames.join('、') : '空';
+    return `<div class="surr-palace">
+      <div class="surr-palace-name">${p.name || ''}</div>
+      <div class="surr-palace-di">${p.earthlyBranch || ''}</div>
+      <div class="surr-palace-stars">${starsStr}</div>
+    </div>`;
+  };
+
+  const html = `
+    <div class="modal-overlay" id="palace-detail-overlay" onclick="closePalaceDetail()"></div>
+    <div class="palace-detail-modal" id="palace-detail-modal">
+      <button class="palace-detail-close" onclick="closePalaceDetail()">✕</button>
+      <div class="palace-detail-header">
+        <div class="palace-detail-title">${palaceName}的三方四正</div>
+        <div class="palace-detail-sub">對宮、財帛、官祿（統稱三方四正）</div>
+      </div>
+      <div class="palace-detail-grid">
+        ${buildPalaceHTML(surr.opposite)}
+        ${(surr.together || []).map(p => buildPalaceHTML(p)).join('')}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('palace-detail-modal')?.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.closePalaceDetail = function() {
+  document.getElementById('palace-detail-modal')?.remove();
+  document.getElementById('palace-detail-overlay')?.remove();
+};
+
+// ===== 桃花/貴人星 Panel =====
+const PEACH_BLOSSOM_STARS = ['紅鸞', '天姚', '咸池', '天喜', '貪狼'];
+const NOBLE_STARS = ['天魁', '天鉞', '文昌', '文曲', '左輔', '右弼'];
+const WISDOM_STARS = ['天機', '紫微', '太陰'];
+
+function buildMinorStarsPanel(readings) {
+  if (!readings) return '<div class="placeholder">無星曜資料</div>';
+
+  const peachStars = [];
+  const nobleStars = [];
+  const wisdomStars = [];
+
+  for (const r of readings) {
+    // 收集所有星曜（majorStars 物件 + minorStars 字串 + adjectiveStars 字串）
+    const allStarNames = [];
+    if (r.stars) {
+      for (const s of r.stars) {
+        const name = typeof s === 'string' ? s : s.name;
+        if (!allStarNames.includes(name)) allStarNames.push(name);
+      }
+    }
+    if (r.minorStars) {
+      for (const s of r.minorStars) {
+        const name = typeof s === 'string' ? s : s.name;
+        if (!allStarNames.includes(name)) allStarNames.push(name);
+      }
+    }
+    if (r.adjectiveStars) {
+      for (const s of r.adjectiveStars) {
+        const name = typeof s === 'string' ? s : s.name;
+        if (!allStarNames.includes(name)) allStarNames.push(name);
+      }
+    }
+
+    for (const name of allStarNames) {
+      if (PEACH_BLOSSOM_STARS.includes(name) && !peachStars.includes(name))
+        peachStars.push({ name, palace: r.palace });
+      if (NOBLE_STARS.includes(name) && !nobleStars.includes(name))
+        nobleStars.push({ name, palace: r.palace });
+      if (WISDOM_STARS.includes(name) && !wisdomStars.includes(name))
+        wisdomStars.push({ name, palace: r.palace });
+    }
+  }
+
+  return `
+    <div class="minor-stars-panel">
+      <div class="minor-stars-section">
+        <div class="ms-label">🌸 桃花/感情星</div>
+        <div class="ms-items">
+          ${peachStars.length > 0
+            ? peachStars.map(s => `<span class="ms-star peach" title="${s.palace}宮">${s.name}</span>`).join('')
+            : '<span class="ms-empty">此命盤中無明顯桃花星</span>'}
+        </div>
+      </div>
+      <div class="minor-stars-section">
+        <div class="ms-label">👑 貴人星</div>
+        <div class="ms-items">
+          ${nobleStars.length > 0
+            ? nobleStars.map(s => `<span class="ms-star noble" title="${s.palace}宮">${s.name}</span>`).join('')
+            : '<span class="ms-empty">無</span>'}
+        </div>
+      </div>
+      <div class="minor-stars-section">
+        <div class="ms-label">🧠 智慧星</div>
+        <div class="ms-items">
+          ${wisdomStars.length > 0
+            ? wisdomStars.map(s => `<span class="ms-star wisdom" title="${s.palace}宮">${s.name}</span>`).join('')
+            : '<span class="ms-empty">無</span>'}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ===== 主星亮度 Helper =====
+function getBrightnessClass(b) {
+  if (!b) return '';
+  const good = ['廟', '旺', '得'];
+  const mid  = ['利', '平'];
+  const bad  = ['不', '陷'];
+  if (good.includes(b)) return 'brightness-廟';
+  if (mid.includes(b))  return 'brightness-平';
+  if (bad.includes(b))  return 'brightness-不';
+  return '';
+}
 
 export { switchMode, loadDashboard, openClaimModal };

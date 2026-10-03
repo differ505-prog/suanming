@@ -661,6 +661,13 @@ select {
   margin-bottom: 4px;
 }
 
+.palace-changsheng {
+  font-size: 0.72rem;
+  color: var(--purple);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
 .chart-note {
   text-align: center;
   font-size: 0.75rem;
@@ -1401,3 +1408,208 @@ select {
   0%, 100% { border-color: var(--accent); }
   50% { border-color: var(--accent-dim); }
 }
+
+/* === 主星亮度標籤 === */
+.brightness-badge {
+  font-size: 0.58rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: 2px;
+  vertical-align: middle;
+  font-weight: bold;
+  line-height: 1.4;
+}
+.brightness-廟, .brightness-旺, .brightness-得 {
+  color: #22c55e;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+}
+.brightness-利, .brightness-平 {
+  color: #94a3b8;
+  background: rgba(148,163,184,0.1);
+  border: 1px solid rgba(148,163,184,0.2);
+}
+.brightness-不, .brightness-陷 {
+  color: #ef4444;
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.3);
+}
+
+/* 四化 inline（星名旁內嵌）*/
+.mutagen-inline {
+  font-size: 0.58rem;
+  padding: 1px 3px;
+  border-radius: 4px;
+  margin-left: 1px;
+  vertical-align: middle;
+  font-weight: bold;
+}
+.mutagen-lu   { color: #22c55e; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); }
+.mutagen-quan { color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); }
+.mutagen-ke   { color: #3b82f6; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); }
+.mutagen-ji   { color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); }
+
+/* 中央卡小型標籤 */
+.brightness-sm { font-size: 0.55rem; padding: 0 3px; border-radius: 3px; margin-left: 1px; vertical-align: middle; font-weight: bold; }
+.mutagen-sm    { font-size: 0.55rem; padding: 0 3px; border-radius: 3px; margin-left: 1px; vertical-align: middle; font-weight: bold; }
+
+/* === 當前大限橫幅 === */
+.decadal-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(201,168,76,0.12), rgba(201,168,76,0.05));
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+.decadal-label {
+  font-size: 0.7rem;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+.decadal-info { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.decadal-gz { font-size: 0.85rem; color: var(--accent); font-weight: bold; }
+.decadal-palace { font-size: 0.85rem; color: var(--text); }
+.decadal-ages { font-size: 0.75rem; color: var(--text-muted); }
+
+/* === Enhancement Tabs（大限時間軸 / 三方四正 / 桃花貴人星）=== */
+.chart-enhancement-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  margin-top: 16px;
+}
+.enhancement-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.enhancement-tab.active {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 500;
+}
+.enhancement-content { }
+.enhancement-content.hidden { display: none; }
+
+/* 大限時間軸 */
+.decadal-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.decadal-segment {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.decadal-ages-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  min-width: 80px;
+  text-align: right;
+}
+.decadal-bar {
+  flex: 1;
+  height: 36px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+.decadal-palace-label { font-size: 0.82rem; color: var(--accent); font-weight: 500; }
+.decadal-segment.current .decadal-bar {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+.decadal-segment.current .decadal-palace-label { font-weight: bold; }
+
+/* === 三方四正 Modal === */
+.palace-detail-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 500;
+  box-shadow: var(--shadow);
+}
+.palace-detail-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.palace-detail-header { margin-bottom: 16px; text-align: center; }
+.palace-detail-title {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.palace-detail-sub { font-size: 0.75rem; color: var(--text-dim); }
+.palace-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.surr-palace {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  text-align: center;
+}
+.surr-palace-name { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 2px; }
+.surr-palace-di { font-size: 1rem; color: var(--accent); font-weight: bold; margin-bottom: 4px; }
+.surr-palace-stars { font-size: 0.72rem; color: var(--text); line-height: 1.4; }
+
+/* === 桃花/貴人星 Panel === */
+.minor-stars-panel { display: flex; flex-direction: column; gap: 12px; }
+.minor-stars-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.ms-label { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; }
+.ms-items { display: flex; flex-wrap: wrap; gap: 6px; }
+.ms-star {
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+.ms-star.peach   { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+.ms-star.noble   { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
+.ms-star.wisdom  { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
+.ms-empty { font-size: 0.78rem; color: var(--text-dim); }
