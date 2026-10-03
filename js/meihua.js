@@ -779,13 +779,15 @@ function buildSequence(hexagram, movingLine) {
 }
 
 // 判斷卦象吉凶（用於配對金句）
-function getAuspicious(hexagram, tiyong) {
+function getAuspicious(hexagram, tiyong, scenario) {
   const { nature, upper, lower } = hexagram;
   const ti = tiyong.ti;
-  
+
   // 根據體用關係與卦象性質綜合判定
   if (tiyong.relation === '相生') return 'good';
   if (tiyong.relation === '比和') return 'neutral';
+  // consumption 場景對阻力更敏感，剋直接降級
+  if (scenario === 'consumption' && tiyong.relation === '相剋') return 'bad';
   return 'bad';
 }
 

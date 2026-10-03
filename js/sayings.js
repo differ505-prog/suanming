@@ -5,6 +5,38 @@
  */
 
 const SAYINGS = {
+  consumption: [
+    // ===== 語氣 A：毒舌激將 =====
+    {
+      id: 'consumption_aggressive_1',
+      tone: '毒舌激將',
+      category: 'bad',
+      text: '卦象說：這筆錢花了，三天內你一定後悔。但你知道你會買的，因為你來問這個問題的時候，心裡早就決定了。',
+      keywords: ['想買', '衝動', '猶豫', '好想要']
+    },
+    {
+      id: 'consumption_aggressive_2',
+      tone: '毒舌激將',
+      category: 'good',
+      text: '這筆錢在卦象裡是「必要支出」，不是浪費。你不是在花錢，你是在買一個讓自己安心的答案。',
+      keywords: ['該買', '要不要', '值得']
+    },
+    // ===== 語氣 B：溫柔洞察 =====
+    {
+      id: 'consumption_gentle_1',
+      tone: '溫柔洞察',
+      category: 'bad',
+      text: '卦象在說：你真正想買的不是那個東西，是「買了之後，我對自己會更好」的感覺。但這個感覺不用花錢也可以給自己。',
+      keywords: ['補償', '對自己好', '想要']
+    },
+    {
+      id: 'consumption_gentle_2',
+      tone: '溫柔洞察',
+      category: 'good',
+      text: '這個消費的卦象很有趣：表面是支出，但卦象說它會以另一種形式回到你手上。先買，再觀察。',
+      keywords: ['貴', '值得', '遲疑']
+    }
+  ],
   career: [
     // ===== 語氣 A：毒舌激將 =====
     {
@@ -245,12 +277,22 @@ const SAYINGS = {
 
 // 根據場景和卦象吉凶抽取金句
 function getSaying(scenario, isGood) {
+  // consumption 場景沒有 tone 分組，直接取隨機
+  if (scenario === 'consumption') {
+    const pool = SAYINGS.consumption;
+    const matches = pool.filter(s => s.category === (isGood ? 'good' : 'bad'));
+    const target = matches.length > 0 ? matches : pool;
+    const today = new Date();
+    const seed = (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()) % target.length;
+    return target[seed] || { tone: '提示', text: '請再試一次' };
+  }
+
   const pool = SAYINGS[scenario] || SAYINGS.career;
   const category = isGood ? 'good' : 'bad';
   const filtered = pool.filter(s => s.category === category);
-  
+
   if (filtered.length === 0) return pool[0];
-  
+
   // 根據日期 seed 確保同一問題同結果
   const today = new Date();
   const seed = (today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate()) % filtered.length;

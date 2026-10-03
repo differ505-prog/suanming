@@ -7,17 +7,59 @@ import { divinate, getAuspicious } from './meihua.js';
 import { castZiwei, generateReading, getCrossReading, STAR_TRAITS } from './ziwei.js';
 import { getSaying } from './sayings.js';
 import { getCurrentCard, drawRandomCard, saveTodayCard, getTodayCard } from './card.js';
+import { ARCHETYPES } from './archetypes.js';
 import {
   addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON,
   saveTodayCard as saveCard, getTodayCard as loadCard,
   addWeeklyReview, addReflection, getReflections,
-  saveUserBirthData, getUserBirthData
+  saveUserBirthData, getUserBirthData,
+  scheduleReflectionReminder, getPendingReminders, clearReminder
 } from './storage.js';
+import { getDailyVibe, hasCheckedIn, getCheckInStreak, checkIn } from './card.js';
 
 // ===== 全域狀態 =====
 let currentMode = 'today';
 let currentResult = null;
 let userBirthData = null; // 命宮主星資料
+
+// ===== 埋點輔助（localStorage bridge）=====
+// 用法：track('divination', { method: 'time', hexagram: '乾', feedback: 'up' })
+
+function track(event, properties = {}) {
+  try {
+    const data = JSON.parse(localStorage.getItem('suanming_events') || '[]');
+    data.push({
+      event,
+      properties,
+      ts: Date.now(),
+      date: new Date().toISOString().slice(0, 10)
+    });
+    // 最多保留 1000 條
+    if (data.length > 1000) data.splice(0, data.length - 1000);
+    localStorage.setItem('suanming_events', JSON.stringify(data));
+  } catch {}
+}
+
+// 讀取埋點數據（供儀表板顯示）
+function getEventStats() {
+  try {
+    const data = JSON.parse(localStorage.getItem('suanming_events') || '[]');
+    const total = data.length;
+    const byEvent = {};
+    data.forEach(d => {
+      byEvent[d.event] = (byEvent[d.event] || 0) + 1;
+    });
+    // 計算 👍 反饋率
+    const feedbackEvents = data.filter(d => d.event === 'feedback');
+    const upCount = feedbackEvents.filter(d => d.properties.feedback === 'up').length;
+    const feedbackRate = feedbackEvents.length > 0
+      ? Math.round((upCount / feedbackEvents.length) * 100)
+      : null;
+    return { total, byEvent, feedbackEvents: feedbackEvents.length, upCount, feedbackRate };
+  } catch {
+    return { total: 0, byEvent: {}, feedbackEvents: 0, upCount: 0, feedbackRate: null };
+  }
+}
 
 // ===== DOM 初始化 =====
 document.addEventListener('DOMContentLoaded', () => {
@@ -39,6 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const firstCard = getCurrentCard();
     showCard(firstCard);
     saveTodayCard(firstCard);
+  }
+
+  // 檢查待複盤提醒
+  const pending = getPendingReminders();
+  if (pending.length > 0) {
+    const reminder = pending[0];
+    showReflectionReminder(reminder);
   }
 });
 
@@ -73,6 +122,7 @@ function initTodayMode() {
       showCard(card);
       saveTodayCard(card);
       addRecord({ mode: '每日能量卡', card: card.title });
+      track('card_draw', { cardId: card.id, period: card.period });
     }
   });
 }
@@ -80,6 +130,20 @@ function initTodayMode() {
 function showCard(card) {
   const area = document.getElementById('card-area');
   if (!area) return;
+
+  // 每日簽到顯示
+  const vibe = getDailyVibe();
+  const checkedIn = hasCheckedIn();
+  const vibeHTML = `
+    <div class="vibe-drop ${checkedIn ? 'checked-in' : ''}" id="vibe-drop">
+      <div class="vibe-color-dot" style="background:${vibe.color.hex}"></div>
+      <div class="vibe-info">
+        <div class="vibe-color">今日幸運色：${vibe.color.name} <span style="font-size:0.7rem;color:var(--text-muted)">${vibe.color.desc}</span></div>
+        <div class="vibe-energy">今日能量關鍵字：<strong style="color:var(--accent)">${vibe.energy}</strong></div>
+      </div>
+      ${!checkedIn ? `<button class="vibe-checkin-btn" id="vibe-checkin-btn" onclick="handleVibeCheckIn()">簽到 ✓</button>` : '<div class="vibe-checked-in">✓ 已簽到</div>'}
+    </div>
+  `;
 
   // 晨間特別標題
   const hour = new Date().getHours();
@@ -91,6 +155,7 @@ function showCard(card) {
 
   area.innerHTML = `
     <div class="energy-card">
+      ${vibeHTML}
       ${morningBadge}
       ${personalGreeting ? `<div class="personal-greeting">${personalGreeting}</div>` : ''}
       <div class="card-period">${card.period}</div>
@@ -221,6 +286,17 @@ function handleClaimSubmit() {
     document.getElementById('claim-result').classList.remove('hidden');
     document.querySelector('.modal-body > .form-group')?.parentElement?.classList.add('hidden');
     document.querySelector('.modal-body > button')?.parentElement?.classList.add('hidden');
+
+    // 添加「查看完整人格卡」按鈕
+    const descEl = document.getElementById('result-star-desc');
+    if (descEl) {
+      const btn = document.createElement('button');
+      btn.className = 'btn-primary';
+      btn.style.cssText = 'margin-top:12px';
+      btn.textContent = '⭐ 查看完整人格卡';
+      btn.onclick = () => { closeClaimModal(); showArchetypeCard(mingStar); };
+      descEl.insertAdjacentElement('afterend', btn);
+    }
   } catch (e) {
     alert('排盤失敗，請檢查日期是否正確');
   }
@@ -293,8 +369,15 @@ function handleDivination() {
   if (!result) return;
 
   currentResult = { ...result, scenario };
-  const isGood = getAuspicious(result.hexagram, result.tiyong) === 'good';
+  const isGood = getAuspicious(result.hexagram, result.tiyong, scenario) === 'good';
   const saying = getSaying(scenario, isGood);
+
+  track('divination', {
+    method: result.method,
+    hexagram: result.hexagram.name,
+    auspicious: isGood ? 'good' : 'bad',
+    scenario
+  });
 
   renderDivinationResult(result, saying);
   addRecord({
@@ -307,9 +390,29 @@ function handleDivination() {
   });
 }
 
-function renderDivinationResult(result, saying) {
+async function renderDivinationResult(result, saying) {
   const area = document.getElementById('result-area');
   if (!area) return;
+
+  // 2.5 秒起卦儀式動畫
+  area.innerHTML = `
+    <div class="divination-ritual">
+      <div class="ritual-symbols">
+        <div class="ritual-symbol s1">☰</div>
+        <div class="ritual-symbol s2">☱</div>
+        <div class="ritual-symbol s3">☲</div>
+        <div class="ritual-symbol s4">☳</div>
+        <div class="ritual-symbol s5">☴</div>
+        <div class="ritual-symbol s6">☵</div>
+        <div class="ritual-symbol s7">☶</div>
+        <div class="ritual-symbol s8">☷</div>
+      </div>
+      <div class="ritual-glow"></div>
+      <div class="ritual-text">時空對齊中...</div>
+    </div>
+  `;
+
+  await new Promise(resolve => setTimeout(resolve, 2500));
 
   const { hexagram, upperTrigram, lowerTrigram, movingLine, movingLineText, tiyong, hugua, biangua, sequence } = result;
 
@@ -390,9 +493,231 @@ function renderDivinationResult(result, saying) {
       <button class="btn-secondary" onclick="openReflection(${Date.now()})" style="margin-top:12px">
         ↪ 記下這個決定 → 7天後回來複盤
       </button>
+
+      <div class="feedback-section" id="feedback-section">
+        <div class="feedback-label">這個卦象有戳中你嗎？</div>
+        <div class="feedback-buttons">
+          <button class="feedback-btn up" id="feedback-up" onclick="handleFeedback('up')">
+            👍 有
+          </button>
+          <button class="feedback-btn down" id="feedback-down" onclick="handleFeedback('down')">
+            👎 還好
+          </button>
+        </div>
+        <div class="feedback-thanks hidden" id="feedback-thanks">謝謝你的回饋 🙏</div>
+      </div>
+
+      <button class="btn-secondary" onclick="generateShareCard()" style="margin-top:8px; width:100%">
+        🖼 生成可分享圖卡
+      </button>
     </div>
   `;
 }
+
+// ===== handleFeedback =====
+function handleFeedback(type) {
+  const hex = currentResult?.hexagram?.name || 'unknown';
+  const method = currentResult?.method || 'unknown';
+  track('feedback', { feedback: type, hexagram: hex, method });
+
+  document.getElementById('feedback-up')?.classList.add('hidden');
+  document.getElementById('feedback-down')?.classList.add('hidden');
+  document.getElementById('feedback-thanks')?.classList.remove('hidden');
+}
+
+function handleVibeCheckIn() {
+  const ok = checkIn();
+  if (ok) {
+    const el = document.getElementById('vibe-drop');
+    if (el) {
+      el.classList.add('checked-in');
+      const btn = el.querySelector('#vibe-checkin-btn');
+      if (btn) btn.remove();
+      const checked = document.createElement('div');
+      checked.className = 'vibe-checked-in';
+      checked.textContent = '✓ 已簽到';
+      el.querySelector('.vibe-info')?.insertAdjacentElement('afterend', checked);
+    }
+    track('checkin', { energy: getDailyVibe().energy });
+  }
+}
+
+// ===== Decision Journal 3天後提醒 =====
+function showReflectionReminder(reminder) {
+  // 只在今日面板或決策面板顯示
+  if (currentMode !== 'today' && currentMode !== 'decision') return;
+
+  const panel = document.querySelector(`[data-panel="${currentMode}"]`);
+  if (!panel) return;
+
+  const existing = document.getElementById('reflection-reminder-banner');
+  if (existing) return; // 只顯示一條
+
+  const banner = document.createElement('div');
+  banner.id = 'reflection-reminder-banner';
+  banner.innerHTML = `
+    <div class="reminder-banner">
+      <div class="reminder-icon">📋</div>
+      <div class="reminder-content">
+        <div class="reminder-title">3天前你問了這個：</div>
+        <div class="reminder-text">"${reminder.decisionText.slice(0, 50)}${reminder.decisionText.length > 50 ? '...' : ''}"</div>
+        <div class="reminder-actions">
+          <button class="reminder-btn yes" onclick="handleReflectionResult('${reminder.recordId}', true)">靈驗了 ✓</button>
+          <button class="reminder-btn no" onclick="handleReflectionResult('${reminder.recordId}', false)">踩坑了 ×</button>
+          <button class="reminder-btn later" onclick="snoozeReminder('${reminder.recordId}')">再緩緩</button>
+        </div>
+      </div>
+      <button class="reminder-dismiss" onclick="dismissReminder()">✕</button>
+    </div>
+  `;
+
+  const cardArea = panel.querySelector('#card-area') || panel.querySelector('.input-section');
+  if (cardArea) {
+    cardArea.insertAdjacentElement('beforebegin', banner);
+  }
+}
+
+function handleReflectionResult(recordId, worked) {
+  addReflection(parseInt(recordId), '', worked ? '靈驗了' : '踩坑了');
+  dismissReminder();
+  track('reflection_result', { recordId, worked });
+}
+
+function snoozeReminder(recordId) {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+
+  const data = loadData();
+  data.pendingReminders = (data.pendingReminders || []).map(r => {
+    if (String(r.recordId) === String(recordId)) {
+      return { ...r, remindAt: d.getTime() };
+    }
+    return r;
+  });
+  saveData(data);
+  dismissReminder();
+}
+
+function dismissReminder() {
+  document.getElementById('reflection-reminder-banner')?.remove();
+}
+
+window.handleReflectionResult = handleReflectionResult;
+window.snoozeReminder = snoozeReminder;
+window.dismissReminder = dismissReminder;
+
+// ===== 渲染 Archetype 視覺卡 =====
+window.showArchetypeCard = function(starName) {
+  const data = ARCHETYPES[starName];
+  if (!data) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'archetype-modal';
+  modal.innerHTML = `
+    <div class="modal-overlay" onclick="closeArchetypeCard()"></div>
+    <div class="archetype-card">
+      <button class="archetype-close" onclick="closeArchetypeCard()">✕</button>
+      <div class="archetype-header" style="background:linear-gradient(135deg, ${data.color}20, ${data.colorCodes[2]})">
+        <div class="archetype-symbol" style="font-size:4rem">${data.symbol}</div>
+        <div class="archetype-name" style="color:${data.color}">【${starName}】</div>
+        <div class="archetype-type">${data.archetype}</div>
+        <div class="archetype-tagline">"${data.tagline}"</div>
+      </div>
+      <div class="archetype-body">
+        <div class="archetype-section">
+          <div class="as-label">核心優勢</div>
+          <div class="as-value">${data.strength}</div>
+        </div>
+        <div class="archetype-section">
+          <div class="as-label">成長功課</div>
+          <div class="as-value growth">${data.growthTask}</div>
+        </div>
+        <div class="archetype-section">
+          <div class="as-label">理想環境</div>
+          <div class="as-value">${data.idealEnv}</div>
+        </div>
+        <div class="archetype-section avoid">
+          <div class="as-label">避開</div>
+          <div class="as-value">${data.avoid}</div>
+        </div>
+        <div class="archetype-quote">${data.quote}</div>
+        <div class="archetype-colors">
+          <div class="as-label">專屬色彩</div>
+          <div class="color-chips">
+            ${data.colorCodes.map(c => `<div class="color-chip" style="background:${c}" title="${c}"></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  setTimeout(() => modal.classList.add('open'), 10);
+};
+
+window.closeArchetypeCard = function() {
+  const modal = document.getElementById('archetype-modal');
+  if (modal) {
+    modal.classList.remove('open');
+    setTimeout(() => modal.remove(), 300);
+  }
+};
+
+// ===== IG 圖卡生成 =====
+window.generateShareCard = async function() {
+  const resultArea = document.getElementById('result-area');
+  if (!resultArea) return;
+
+  const hexName = currentResult?.hexagram?.name || '卦';
+  const upper = currentResult?.upperTrigram?.symbol || '☰';
+  const lower = currentResult?.lowerTrigram?.symbol || '☰';
+  const tiyong = currentResult?.tiyong?.relation || '';
+  const guaci = currentResult?.guaci || '';
+  const sayingText = document.querySelector('.saying-text')?.textContent || '';
+  const sayingTone = document.querySelector('.saying-tone')?.textContent || '';
+
+  // 建立臨時 DOM（不上樹，用 document 建立後馬上截圖）
+  const card = document.createElement('div');
+  card.style.cssText = `
+    width: 1080px; height: 1350px;
+    background: #0a0908;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 80px;
+    font-family: 'Noto Serif TC', serif;
+    position: fixed; left: -9999px; top: 0;
+    box-sizing: border-box;
+  `;
+  card.innerHTML = `
+    <div style="font-size:80px;margin-bottom:20px">${upper} / ${lower}</div>
+    <div style="font-size:120px;font-weight:bold;color:#c9a84c;margin-bottom:10px">${hexName}卦</div>
+    <div style="font-size:36px;color:#7a756d;margin-bottom:40px">${guaci}</div>
+    <div style="width:600px;height:2px;background:#2a2825;margin-bottom:40px"></div>
+    <div style="font-size:44px;color:#f0ede6;line-height:1.8;text-align:center;max-width:900px;margin-bottom:40px">${sayingTone}${sayingText}</div>
+    <div style="font-size:32px;color:#4a453f;margin-bottom:60px">體用${tiyong}</div>
+    <div style="font-size:28px;color:#c9a84c80;letter-spacing:4px">梅花易數 · 紫微斗數</div>
+    <div style="font-size:22px;color:#2a2825;margin-top:12px">suanming.vercel.app</div>
+  `;
+  document.body.appendChild(card);
+
+  try {
+    const canvas = await html2canvas(card, {
+      scale: 2,
+      backgroundColor: '#0a0908',
+      useCORS: true
+    });
+    const link = document.createElement('a');
+    link.download = `${hexName}卦_${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    track('card_download', { hexagram: hexName, method: currentResult?.method });
+  } catch (err) {
+    console.error('圖卡生成失敗:', err);
+    alert('圖卡生成失敗，請稍後再試');
+  } finally {
+    document.body.removeChild(card);
+  }
+};
 
 // ===== 命盤模式 =====
 function initChartMode() {
@@ -451,7 +776,7 @@ function renderZiweiResult(result, readings) {
 
   const headerHTML = `
     <div class="chart-header">
-      ${mingStar ? `<div class="chart-ming-star">命宮主星：${mingStar}</div>` : ''}
+      ${mingStar ? `<div class="chart-ming-star" onclick="showArchetypeCard('${mingStar}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStar} ⭐</div>` : ''}
       <div class="chart-info-row">
         <div class="chart-info-item">
           <span class="ci-label">國曆</span>
@@ -508,6 +833,7 @@ window.togglePalace = function(el) {
 // ===== 儀表板 =====
 function loadDashboard() {
   const stats = getStats();
+  const eventStats = getEventStats();
   const records = getRecords().slice(0, 10);
   const ud = getUserBirthData();
 
@@ -516,12 +842,12 @@ function loadDashboard() {
     statsEl.innerHTML = `
       <div class="stat-grid">
         ${ud && ud.mingStar ? `
-        <div class="stat-item" style="grid-column:1/-1; text-align:center; margin-bottom:8px">
-          <div class="stat-value" style="color:var(--accent)">⭐ ${ud.mingStar}坐命</div>
+        <div class="stat-item" style="grid-column:1/-1; text-align:center; margin-bottom:8px; cursor:pointer" onclick="showArchetypeCard('${ud.mingStar}')">
+          <div class="stat-value" style="color:var(--accent)">⭐ ${ud.mingStar}坐命 ⭐</div>
         </div>
         ` : ''}
         <div class="stat-item">
-          <div class="stat-value">${stats.totalUses}</div>
+          <div class="stat-value">${stats.totalUses + eventStats.total}</div>
           <div class="stat-label">總使用次數</div>
         </div>
         <div class="stat-item streak">
@@ -539,6 +865,14 @@ function loadDashboard() {
         <div class="stat-item">
           <div class="stat-value">${stats.topHexagrams.slice(0, 2).join('·') || '—'}</div>
           <div class="stat-label">常見卦象</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${eventStats.feedbackRate !== null ? eventStats.feedbackRate + '%' : '—'}</div>
+          <div class="stat-label">神準率</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">${getCheckInStreak()}天</div>
+          <div class="stat-label">簽到連續</div>
         </div>
       </div>
     `;
@@ -602,7 +936,8 @@ window.openReflection = function(recordId) {
   const text = prompt('描述你做的這個決定：');
   if (text) {
     addReflection(recordId, text, '待觀察');
-    alert('已記錄，7天後可在儀表板回顧');
+    scheduleReflectionReminder(recordId, text); // 新增：排程3天後提醒
+    alert('已記錄，3天後我會提醒你回來看看結果 🔔');
   }
 };
 

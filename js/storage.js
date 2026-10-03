@@ -96,16 +96,16 @@ function addRecord(record) {
 function getStats() {
   const data = loadData();
   const records = data.records || [];
-  
+
   // 模式統計
   const modeCount = {};
   records.forEach(r => {
     modeCount[r.mode] = (modeCount[r.mode] || 0) + 1;
   });
-  
+
   // 最常用模式
   const topMode = Object.entries(modeCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-  
+
   // 最常卦象
   const hexagramCount = {};
   records.filter(r => r.hexagram).forEach(r => {
@@ -115,14 +115,30 @@ function getStats() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .map(([name]) => name);
-  
+
+  // 埋點統計
+  const eventStats = (() => {
+    try {
+      const evData = JSON.parse(localStorage.getItem('suanming_events') || '[]');
+      const fb = evData.filter(d => d.event === 'feedback');
+      const up = fb.filter(d => d.properties.feedback === 'up').length;
+      return {
+        feedbackTotal: fb.length,
+        feedbackUp: up,
+        feedbackRate: fb.length > 0 ? Math.round((up / fb.length) * 100) : null
+      };
+    } catch { return { feedbackTotal: 0, feedbackUp: 0, feedbackRate: null }; }
+  })();
+
   return {
     totalUses: records.length,
     streak: data.streak,
     streakHistory: data.streakHistory,
     topMode,
     topHexagrams,
-    totalDays: data.totalDays || 0
+    totalDays: data.totalDays || 0,
+    feedbackRate: eventStats.feedbackRate,
+    feedbackTotal: eventStats.feedbackTotal
   };
 }
 
@@ -190,10 +206,51 @@ function getWeekNumber() {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
+// ===== 延遲複盤提醒 =====
+function scheduleReflectionReminder(recordId, decisionText) {
+  const d = new Date();
+  d.setDate(d.getDate() + 3);
+  d.setHours(9, 0, 0, 0); // 3天後早上9點
+
+  const data = loadData();
+  if (!data.pendingReminders) data.pendingReminders = [];
+
+  // 避免重複
+  if (!data.pendingReminders.find(r => r.recordId === recordId)) {
+    data.pendingReminders.push({
+      recordId,
+      decisionText,
+      remindAt: d.getTime(),
+      createdAt: Date.now()
+    });
+  }
+
+  saveData(data);
+  return d.getTime();
+}
+
+function getPendingReminders() {
+  const data = loadData();
+  const now = Date.now();
+  return (data.pendingReminders || []).filter(r => r.remindAt <= now);
+}
+
+function clearReminder(recordId) {
+  const data = loadData();
+  data.pendingReminders = (data.pendingReminders || []).filter(r => r.recordId !== recordId);
+  saveData(data);
+}
+
 // 決策回看
 function addReflection(recordId, text, result) {
   const data = loadData();
   data.reflections.push({ recordId, text, result, date: today() });
+
+  // 如果有結果標記，清除提醒
+  if (result && result !== '待觀察') {
+    data.pendingReminders = (data.pendingReminders || []).filter(r => String(r.recordId) !== String(recordId));
+  }
+
   saveData(data);
 }
 
@@ -214,4 +271,4 @@ function getUserBirthData() {
   return data.userBirthData || null;
 }
 
-export { loadData, saveData, updateStreak, addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard, getTodayCard, addWeeklyReview, getWeekNumber, addReflection, getReflections, today, saveUserBirthData, getUserBirthData };
+export { loadData, saveData, updateStreak, addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard, getTodayCard, addWeeklyReview, getWeekNumber, addReflection, getReflections, today, saveUserBirthData, getUserBirthData, scheduleReflectionReminder, getPendingReminders, clearReminder };

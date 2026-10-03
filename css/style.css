@@ -1033,6 +1033,292 @@ select {
   letter-spacing: 0.05em;
 }
 
+/* === 神準感回饋按鈕 === */
+.feedback-section {
+  margin: 16px 0 0;
+  text-align: center;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+}
+.feedback-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.feedback-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.feedback-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.feedback-btn:hover { border-color: var(--accent); color: var(--accent); }
+.feedback-btn.up:hover { background: rgba(58,107,74,0.2); border-color: var(--green); }
+.feedback-btn.down:hover { background: rgba(139,58,58,0.2); border-color: var(--red); }
+.feedback-thanks {
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin-top: 8px;
+}
+.feedback-thanks.hidden { display: none; }
+.feedback-btn.hidden { display: none; }
+
+/* === 2.5秒起卦儀式動畫 === */
+.divination-ritual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  position: relative;
+}
+.ritual-symbols {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+.ritual-symbol {
+  position: absolute;
+  font-size: 2.5rem;
+  color: var(--accent);
+  opacity: 0;
+  animation: ritual-spin 2.5s ease-in-out infinite;
+}
+.ritual-symbol.s1 { animation-delay: 0s; }
+.ritual-symbol.s2 { animation-delay: 0.2s; }
+.ritual-symbol.s3 { animation-delay: 0.4s; }
+.ritual-symbol.s4 { animation-delay: 0.6s; }
+.ritual-symbol.s5 { animation-delay: 0.8s; }
+.ritual-symbol.s6 { animation-delay: 1.0s; }
+.ritual-symbol.s7 { animation-delay: 1.2s; }
+.ritual-symbol.s8 { animation-delay: 1.4s; }
+.ritual-glow {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,168,76,0.3), transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: glow-pulse 1.2s ease-in-out infinite;
+}
+.ritual-text {
+  margin-top: 24px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  animation: text-blink 1.5s ease-in-out infinite;
+}
+@keyframes ritual-spin {
+  0% { opacity: 0; transform: rotate(0deg) scale(0.5); }
+  20% { opacity: 1; transform: rotate(45deg) scale(1); }
+  80% { opacity: 1; transform: rotate(315deg) scale(1); }
+  100% { opacity: 0; transform: rotate(360deg) scale(0.5); }
+}
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.3; transform: translate(-50%,-50%) scale(1); }
+  50% { opacity: 0.8; transform: translate(-50%,-50%) scale(1.4); }
+}
+@keyframes text-blink {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* === Daily Vibe Drop === */
+.vibe-drop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+}
+.vibe-drop.checked-in { opacity: 0.7; }
+.vibe-color-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.vibe-info { flex: 1; min-width: 0; }
+.vibe-color, .vibe-energy {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.vibe-checkin-btn {
+  font-size: 0.78rem;
+  color: var(--accent);
+  background: rgba(201,168,76,0.1);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vibe-checked-in {
+  font-size: 0.75rem;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+/* === Decision Journal 提醒橫幅 === */
+.reminder-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(107,91,138,0.15);
+  border: 1px solid var(--purple-dim);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+}
+.reminder-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: 2px; }
+.reminder-content { flex: 1; }
+.reminder-title {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.reminder-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  font-style: italic;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.reminder-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.reminder-btn {
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  transition: all 0.2s;
+}
+.reminder-btn.yes { color: var(--green); border-color: var(--green); }
+.reminder-btn.no { color: var(--red); border-color: var(--red); }
+.reminder-btn.yes:hover { background: rgba(58,107,74,0.2); }
+.reminder-btn.no:hover { background: rgba(139,58,58,0.2); }
+.reminder-btn.later { color: var(--text-muted); }
+.reminder-dismiss {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.reminder-dismiss:hover { color: var(--text); }
+
+/* === 14主星 Archetype 視覺卡 === */
+#archetype-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#archetype-modal.open { opacity: 1; }
+.archetype-card {
+  position: relative;
+  width: 90%;
+  max-width: 380px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow), 0 0 60px rgba(201,168,76,0.15);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.archetype-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 1;
+}
+.archetype-header {
+  padding: 32px 24px 24px;
+  text-align: center;
+}
+.archetype-name {
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+.archetype-type {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.archetype-tagline {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.archetype-body { padding: 20px 24px 24px; }
+.archetype-section {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent);
+}
+.archetype-section.avoid {
+  border-left-color: var(--red);
+  background: rgba(139,58,58,0.08);
+}
+.as-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.as-value { font-size: 0.88rem; color: var(--text); line-height: 1.5; }
+.as-value.growth { color: var(--accent); }
+.archetype-quote {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 16px 0;
+  line-height: 1.7;
+}
+.archetype-colors { }
+.color-chips { display: flex; gap: 8px; margin-top: 8px; }
+.color-chip {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+
 /* === claim-entry-btn === */
 .claim-entry-btn {
   animation: subtle-pulse 3s ease-in-out infinite;

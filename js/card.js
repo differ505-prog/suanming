@@ -4,6 +4,78 @@
  * 全程無 Math.random，用日期+時辰seed驅動同一日同一卡
  */
 
+// ===== 每日幸運色 + 能量關鍵字（確定性 seed）=====
+const LUCKY_COLORS = [
+  { name: '金色', hex: '#c9a84c', desc: '今天的行動色，金色代表貴人運' },
+  { name: '黑色', hex: '#2a2825', desc: '今天的沉澱色，適合內觀與整理' },
+  { name: '紅色', hex: '#8b3a3a', desc: '今天的突破色，紅色點燃行動力' },
+  { name: '綠色', hex: '#3a6b4a', desc: '今天的生長色，適合播種與開始' },
+  { name: '紫色', hex: '#6b5b8a', desc: '今天的直覺色，適合相信第一感覺' },
+  { name: '白色', hex: '#f0ede6', desc: '今天的純白色，適合清零與重新開始' }
+];
+
+const ENERGY_WORDS = [
+  '蓄力', '突破', '觀望', '行動', '整理', '連結',
+  '沉澱', '釋放', '播種', '收割', '聚焦', '放鬆'
+];
+
+function getDailyVibe() {
+  const d = new Date();
+  const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  const colorIdx = dayOfYear % LUCKY_COLORS.length;
+  const energyIdx = (dayOfYear * 7 + d.getMonth()) % ENERGY_WORDS.length;
+  return {
+    color: LUCKY_COLORS[colorIdx],
+    energy: ENERGY_WORDS[energyIdx],
+    dayOfYear
+  };
+}
+
+// 簽到記錄
+function checkIn() {
+  const d = new Date();
+  const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const data = (() => {
+    try { return JSON.parse(localStorage.getItem('suanming_checkin') || '{}'); } catch { return {}; }
+  })();
+  if (data[dateKey]) return false; // 今日已簽到
+  data[dateKey] = { ts: Date.now(), vibe: getDailyVibe() };
+  if (Object.keys(data).length > 90) {
+    const keys = Object.keys(data).sort();
+    while (keys.length > 90) keys.shift();
+    keys.forEach(k => { if (!keys.includes(k)) delete data[k]; });
+  }
+  try { localStorage.setItem('suanming_checkin', JSON.stringify(data)); } catch {}
+  return true;
+}
+
+function hasCheckedIn() {
+  const d = new Date();
+  const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  try {
+    const data = JSON.parse(localStorage.getItem('suanming_checkin') || '{}');
+    return !!data[dateKey];
+  } catch { return false; }
+}
+
+function getCheckInStreak() {
+  try {
+    const data = JSON.parse(localStorage.getItem('suanming_checkin') || '{}');
+    const keys = Object.keys(data).sort().reverse();
+    if (keys.length === 0) return 0;
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 90; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if (data[k]) streak++;
+      else if (i > 0) break;
+    }
+    return streak;
+  } catch { return 0; }
+}
+
 const ENERGY_CARDS = [
   // 晨（06:00-12:00）
   { id: 'm1', period: '晨', title: '起始的安靜', text: '今天適合讓自己落後於這個世界五分鐘。不是焦慮，是校準。', action: '出門前在原地坐三十秒' },
