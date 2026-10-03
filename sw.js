@@ -1,16 +1,16 @@
 /**
- * Service Worker — 離線緩存
+ * Service Worker v4 — iztro bundle
  * 策略：Cache-First（優先讀緩存，失敗再網路）
  */
 
-const CACHE_NAME = 'suanming-v3';
+const CACHE_NAME = 'suanming-v4';
 const ASSETS = [
   '/',
   '/index.html',
   '/css/style.css',
-  '/js/app.js',
+  '/dist/bundle.js',
+  '/dist/sw-bundle.js',
   '/js/meihua.js',
-  '/js/ziwei.js',
   '/js/sayings.js',
   '/js/card.js',
   '/js/storage.js',

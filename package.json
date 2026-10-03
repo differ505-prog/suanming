@@ -1,0 +1,17 @@
+{
+  "name": "suanming",
+  "version": "3.0.0",
+  "description": "梅花易數 · 紫微斗數 - 命理應用",
+  "type": "module",
+  "scripts": {
+    "dev": "node build.mjs --dev",
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "iztro": "^1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

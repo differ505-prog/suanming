@@ -217,7 +217,7 @@
     
   </div>
   
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="dist/bundle.js"></script>
   <script>
     // 快捷入口按鈕
     window.switchToDecision = function() {
@@ -230,7 +230,7 @@
     // Service Worker 註冊（漸進增強，不影響主流程）
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
+        navigator.serviceWorker.register('/dist/sw-bundle.js').catch(() => {});
       });
     }
   </script>
