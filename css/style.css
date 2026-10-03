@@ -1613,3 +1613,216 @@ select {
 .ms-star.noble   { background: rgba(201,168,76,0.15); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); }
 .ms-star.wisdom  { background: rgba(59,130,246,0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); }
 .ms-empty { font-size: 0.78rem; color: var(--text-dim); }
+
+/* ====== MAPS Persona System ====== */
+
+/* Header 雙欄佈局 */
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+/* 頂部指示器 */
+.persona-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  user-select: none;
+}
+.persona-indicator:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent-dim);
+}
+.persona-avatar { font-size: 1.1rem; line-height: 1; }
+.persona-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.persona-caret {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  transition: transform 0.25s ease;
+}
+.persona-indicator.open .persona-caret { transform: rotate(180deg); }
+
+/* 下拉面板 */
+.persona-panel {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  width: 280px;
+  max-height: 70vh;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 1000;
+  overflow: hidden;
+  animation: personaPanelIn 0.2s ease forwards;
+}
+@keyframes personaPanelIn {
+  from { opacity: 0; transform: scale(0.92) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.persona-panel.hidden { display: none; }
+
+.persona-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.persona-panel-title { font-size: 0.8rem; color: var(--text-dim); }
+.persona-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 4px;
+  line-height: 1;
+}
+.persona-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+}
+.persona-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.persona-list-item:hover { background: var(--bg-card-hover); }
+.persona-list-item.active {
+  background: var(--accent-alpha);
+  border: 1px solid var(--accent-dim);
+}
+.persona-list-item-avatar {
+  font-size: 1.4rem;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.persona-list-item-info { flex: 1; min-width: 0; }
+.persona-list-item-name { font-size: 0.95rem; color: var(--text); font-weight: 500; }
+.persona-list-item-meta { font-size: 0.75rem; color: var(--text-dim); }
+.persona-list-item-star { font-size: 0.78rem; color: var(--accent); margin-left: auto; }
+.persona-panel-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.persona-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--font-sans);
+}
+.persona-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+.persona-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0,0,0,0.3);
+}
+.persona-overlay.hidden { display: none; }
+
+/* 新增人物 Modal */
+.persona-modal { width: 360px; max-width: 90vw; }
+.persona-modal .modal-content {
+  max-width: 360px;
+  text-align: left;
+}
+.persona-step { display: none; }
+.persona-step.active { display: block; animation: fadeIn 0.25s ease; }
+.step-indicator {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+.persona-preview {
+  background: var(--bg-input);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 8px;
+}
+.persona-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.persona-preview-avatar { font-size: 2rem; }
+.persona-preview-name { font-size: 1.1rem; font-weight: 500; }
+.persona-preview-detail { font-size: 0.8rem; color: var(--text-dim); }
+.persona-preview-star { font-size: 0.9rem; color: var(--accent); margin-top: 6px; }
+
+/* 過渡動畫 */
+body { transition: background-color 0.4s ease; }
+.app { transition: border-color 0.4s ease; }
+
+/* 主題變數 */
+:root { --accent-alpha: rgba(201,168,76,0.15); }
+[data-persona-theme="tjj"]  { --accent: #5b8dd9; --accent-alpha: rgba(91,141,217,0.15); }
+[data-persona-theme="tyy"]  { --accent: #e8b84a; --accent-alpha: rgba(232,184,74,0.15); }
+[data-persona-theme="wqx"]  { --accent: #a0a0a0; --accent-alpha: rgba(160,160,160,0.15); }
+[data-persona-theme="ttd"]  { --accent: #3a6b4a; --accent-alpha: rgba(58,107,74,0.15); }
+[data-persona-theme="lzh"]  { --accent: #8b3a3a; --accent-alpha: rgba(139,58,58,0.15); }
+[data-persona-theme="zrw"]  { --accent: #c9a84c; --accent-alpha: rgba(201,168,76,0.15); }
+[data-persona-theme="tlq"]  { --accent: #ef4444; --accent-alpha: rgba(239,68,68,0.15); }
+[data-persona-theme="tyyin"]{ --accent: #6b5b8a; --accent-alpha: rgba(107,91,138,0.15); }
+[data-persona-theme="tfs"]  { --accent: #c9a84c; --accent-alpha: rgba(201,168,76,0.15); }
+[data-persona-theme="jmk"]  { --accent: #6b6b6b; --accent-alpha: rgba(107,107,107,0.15); }
+[data-persona-theme="pjj"]  { --accent: #8b4513; --accent-alpha: rgba(139,69,19,0.15); }
+[data-persona-theme="qsh"]  { --accent: #dc2626; --accent-alpha: rgba(220,38,38,0.15); }
+
+/* 響應式 */
+@media (max-width: 640px) {
+  .header-top { flex-wrap: wrap; gap: 12px; }
+  .header-left { flex: 1; }
+  .persona-panel { right: 8px; left: 8px; width: auto; }
+  .persona-modal .modal-content { max-width: 95vw; }
+}

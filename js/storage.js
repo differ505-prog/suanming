@@ -271,4 +271,199 @@ function getUserBirthData() {
   return data.userBirthData || null;
 }
 
-export { loadData, saveData, updateStreak, addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard, getTodayCard, addWeeklyReview, getWeekNumber, addReflection, getReflections, today, saveUserBirthData, getUserBirthData, scheduleReflectionReminder, getPendingReminders, clearReminder };
+// ===== 多人物管理 =====
+
+// 取得所有人物
+function getProfiles() {
+  const data = loadData();
+  return data.profiles || [];
+}
+
+// 取得當前人物
+function getCurrentProfile() {
+  const data = loadData();
+  const id = data.currentPersonaId || 'p_self';
+  return data.profiles?.find(p => p.id === id) || data.profiles?.[0] || null;
+}
+
+// 切換當前人物
+function setCurrentProfile(profileId) {
+  const data = loadData();
+  const profile = data.profiles?.find(p => p.id === profileId);
+  if (!profile) return false;
+  data.currentPersonaId = profileId;
+  saveData(data);
+  return true;
+}
+
+// 新增人物
+function addProfile(profileData) {
+  const data = loadData();
+  if (!data.profiles) data.profiles = [];
+  const id = 'p_' + Date.now();
+  const newProfile = {
+    id,
+    isDefault: data.profiles.length === 0,
+    nickname: profileData.nickname || '新人物',
+    avatar: profileData.avatar || null,
+    birthData: profileData.birthData || { year: null, month: null, day: null, hour: null, gender: null },
+    mingStar: profileData.mingStar || null,
+    mingStars: profileData.mingStars || [],
+    relationship: profileData.relationship || 'friend',
+    colorDNA: profileData.colorDNA || getDefaultColorDNA(profileData.mingStar),
+    usageStats: {
+      lastUsed: Date.now(),
+      usageCount: 1,
+      lastContext: null
+    },
+    contextHistory: []
+  };
+  data.profiles.push(newProfile);
+  saveData(data);
+  return newProfile;
+}
+
+// 更新人物
+function updateProfile(profileId, updates) {
+  const data = loadData();
+  const idx = data.profiles?.findIndex(p => p.id === profileId);
+  if (idx === -1 || idx === undefined) return false;
+  data.profiles[idx] = { ...data.profiles[idx], ...updates };
+  saveData(data);
+  return true;
+}
+
+// 刪除人物
+function deleteProfile(profileId) {
+  const data = loadData();
+  if (!data.profiles || data.profiles.length <= 1) return false;
+  data.profiles = data.profiles.filter(p => p.id !== profileId);
+  if (data.currentPersonaId === profileId) {
+    data.currentPersonaId = data.profiles[0].id;
+  }
+  saveData(data);
+  return true;
+}
+
+// 記錄人物使用
+function recordProfileUsage(profileId, context) {
+  const data = loadData();
+  const idx = data.profiles?.findIndex(p => p.id === profileId);
+  if (idx === -1 || idx === undefined) return;
+  const stats = data.profiles[idx].usageStats;
+  stats.lastUsed = Date.now();
+  stats.usageCount = (stats.usageCount || 0) + 1;
+  stats.lastContext = context;
+  const history = data.profiles[idx].contextHistory || [];
+  history.unshift({ context, timestamp: Date.now() });
+  if (history.length > 10) history.pop();
+  data.profiles[idx].contextHistory = history;
+  saveData(data);
+}
+
+// 根據主星取得預設 colorDNA
+function getDefaultColorDNA(mingStar) {
+  const dnaMap = {
+    '紫微': { primary: '#c9a84c', secondary: '#2a2010', font: 'serif', iconStyle: 'seal', accentPattern: 'geometric' },
+    '天機': { primary: '#5b8dd9', secondary: '#2a4a8b', font: 'serif', iconStyle: 'flow', accentPattern: 'wave' },
+    '太陽': { primary: '#e8b84a', secondary: '#2a1f00', font: 'serif', iconStyle: 'sharp', accentPattern: 'none' },
+    '武曲': { primary: '#a0a0a0', secondary: '#2a2a2a', font: 'serif', iconStyle: 'sharp', accentPattern: 'geometric' },
+    '天同': { primary: '#3a6b4a', secondary: '#0a1a0a', font: 'serif-soft', iconStyle: 'round', accentPattern: 'cloud' },
+    '廉貞': { primary: '#8b3a3a', secondary: '#2a1010', font: 'serif', iconStyle: 'sharp', accentPattern: 'none' },
+    '天府': { primary: '#c9a84c', secondary: '#2a2010', font: 'serif', iconStyle: 'seal', accentPattern: 'cloud' },
+    '太陰': { primary: '#6b5b8a', secondary: '#1a1525', font: 'serif-soft', iconStyle: 'round', accentPattern: 'cloud' },
+    '貪狼': { primary: '#ef4444', secondary: '#2a0a0a', font: 'serif', iconStyle: 'sharp', accentPattern: 'none' },
+    '巨門': { primary: '#6b6b6b', secondary: '#1a1a1a', font: 'serif', iconStyle: 'flow', accentPattern: 'none' },
+    '破軍': { primary: '#8b4513', secondary: '#2a1505', font: 'serif', iconStyle: 'sharp', accentPattern: 'geometric' },
+    '七殺': { primary: '#dc2626', secondary: '#2a0a0a', font: 'serif', iconStyle: 'sharp', accentPattern: 'geometric' }
+  };
+  return dnaMap[mingStar] || { primary: '#c9a84c', secondary: '#2a2010', font: 'serif', iconStyle: 'seal', accentPattern: 'none' };
+}
+
+// 預測當前人物（時間 + 歷史）
+function predictCurrentProfile() {
+  const data = loadData();
+  const profiles = data.profiles || [];
+  if (profiles.length <= 1) return profiles[0]?.id || null;
+
+  const now = new Date();
+  const hour = now.getHours();
+  const dayOfWeek = now.getDay();
+
+  const timeWeights = {
+    self:    hour >= 6 && hour < 10 ? 3 : (hour >= 22 || hour < 2) ? 2 : 1,
+    family:  hour >= 18 && hour < 22 ? 2 : 1,
+    partner: hour >= 20 && hour < 23 ? 2 : 1,
+    client:  hour >= 9 && hour < 18 ? 3 : 1,
+    friend:  hour >= 12 && hour < 14 ? 2 : 1
+  };
+
+  const scored = profiles.map(p => {
+    let score = (timeWeights[p.relationship] || 1);
+    const lastUsed = p.usageStats?.lastUsed;
+    if (lastUsed) {
+      const hoursSince = (Date.now() - lastUsed) / 3600000;
+      if (hoursSince < 24) score += 3;
+      else if (hoursSince < 72) score += 1;
+    }
+    score += Math.min((p.usageStats?.usageCount || 0) / 50, 2);
+    if (dayOfWeek === 0 && p.relationship === 'family') score += 2;
+    return { id: p.id, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0]?.id || profiles[0]?.id;
+}
+
+// 遷移：若沒有 profiles，自動從現有資料建立預設人物
+function migrateLegacyData() {
+  const data = loadData();
+  if (data.profiles && data.profiles.length > 0) return;
+
+  if (data.userBirthData) {
+    const { mingStar, mingStars } = data.userBirthData;
+    data.profiles = [{
+      id: 'p_self',
+      isDefault: true,
+      nickname: '我',
+      avatar: null,
+      birthData: {
+        year: data.userBirthData.year,
+        month: data.userBirthData.month,
+        day: data.userBirthData.day,
+        hour: data.userBirthData.hour,
+        gender: data.userBirthData.gender
+      },
+      mingStar: mingStar || null,
+      mingStars: mingStars || [],
+      relationship: 'self',
+      colorDNA: getDefaultColorDNA(mingStar),
+      usageStats: {
+        lastUsed: Date.now(),
+        usageCount: data.totalDays || 0,
+        lastContext: null
+      },
+      contextHistory: []
+    }];
+    data.currentPersonaId = 'p_self';
+    saveData(data);
+  } else {
+    data.profiles = [{
+      id: 'p_self',
+      isDefault: true,
+      nickname: '我',
+      avatar: null,
+      birthData: { year: null, month: null, day: null, hour: null, gender: null },
+      mingStar: null,
+      mingStars: [],
+      relationship: 'self',
+      colorDNA: getDefaultColorDNA(null),
+      usageStats: { lastUsed: Date.now(), usageCount: 0, lastContext: null },
+      contextHistory: []
+    }];
+    data.currentPersonaId = 'p_self';
+    saveData(data);
+  }
+}
+
+export { loadData, saveData, updateStreak, addRecord, getStats, getRecords, deleteRecord, clearAll, exportJSON, saveTodayCard, getTodayCard, addWeeklyReview, getWeekNumber, addReflection, getReflections, today, saveUserBirthData, getUserBirthData, scheduleReflectionReminder, getPendingReminders, clearReminder, getProfiles, getCurrentProfile, setCurrentProfile, addProfile, updateProfile, deleteProfile, recordProfileUsage, getDefaultColorDNA, predictCurrentProfile, migrateLegacyData };

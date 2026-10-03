@@ -22,12 +22,49 @@ const ENERGY_WORDS = [
 function getDailyVibe() {
   const d = new Date();
   const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+
+  // 嘗試從當前人物取得個人化設定
+  try {
+    const data = JSON.parse(localStorage.getItem('suanming_v1') || '{}');
+    const profile = data.profiles?.find(p => p.id === data.currentPersonaId);
+
+    if (profile?.mingStar) {
+      const starColorMap = {
+        '紫微': { name: '金色', hex: '#c9a84c', desc: '今天的行動色，帝王之光引領方向' },
+        '天機': { name: '藍色', hex: '#5b8dd9', desc: '今天的思考色，策略是你的超能力' },
+        '太陽': { name: '橙色', hex: '#e8b84a', desc: '今天的照耀色，善意會回到你身上' },
+        '武曲': { name: '銀色', hex: '#a0a0a0', desc: '今天的紀律色，執行力是你最好的朋友' },
+        '天同': { name: '綠色', hex: '#3a6b4a', desc: '今天的平和色，允許自己慢下來' },
+        '廉貞': { name: '紅色', hex: '#8b3a3a', desc: '今天的突破色，熱情是你最大的武器' },
+        '天府': { name: '金色', hex: '#c9a84c', desc: '今天的保守色，穩健是你今天的功課' },
+        '太陰': { name: '紫色', hex: '#6b5b8a', desc: '今天的直覺色，相信你的第六感' },
+        '貪狼': { name: '紫紅', hex: '#9333ea', desc: '今天的冒險色，機會在你不熟悉的地方' },
+        '巨門': { name: '灰色', hex: '#6b6b6b', desc: '今天的沉默色，有時候不說話更有力量' },
+        '破軍': { name: '棕色', hex: '#8b4513', desc: '今天的破局色，改變是今天的主題' },
+        '七殺': { name: '深紅', hex: '#dc2626', desc: '今天的決斷色，果斷是你今天最好的策略' }
+      };
+
+      const personalized = starColorMap[profile.mingStar];
+      if (personalized) {
+        const energyIdx = (dayOfYear * 7 + d.getMonth() + getPersonaSeed()) % ENERGY_WORDS.length;
+        return {
+          color: personalized,
+          energy: ENERGY_WORDS[energyIdx],
+          dayOfYear,
+          personalized: true
+        };
+      }
+    }
+  } catch {}
+
+  // Fallback: 通用幸運色
   const colorIdx = dayOfYear % LUCKY_COLORS.length;
   const energyIdx = (dayOfYear * 7 + d.getMonth()) % ENERGY_WORDS.length;
   return {
     color: LUCKY_COLORS[colorIdx],
     energy: ENERGY_WORDS[energyIdx],
-    dayOfYear
+    dayOfYear,
+    personalized: false
   };
 }
 
@@ -115,7 +152,21 @@ const ENERGY_CARDS = [
   { id: 'n8', period: '夜', title: '最後的思想', text: '睡前的最後一個念頭，會在睡眠中繼續生長。不是吸引力法則，是大腦神經元的夜間重組。選擇一個讓你安心的想法入睡。', action: '今晚選擇一個讓自己安心的想法帶入睡' }
 ];
 
-// 根據時段取得當日卡片（確定性seed，無random）
+// ===== 命盤驅動的 seed 生成 =====
+
+// 取得當前人物的命宮主星 hash
+function getPersonaSeed() {
+  try {
+    const data = JSON.parse(localStorage.getItem('suanming_v1') || '{}');
+    const profile = data.profiles?.find(p => p.id === data.currentPersonaId);
+    if (!profile?.mingStar) return 0;
+    const starOrder = ['紫微','天機','太陽','武曲','天同','廉貞','天府','太陰','貪狼','巨門','破軍','七殺','文昌','文曲'];
+    const idx = starOrder.indexOf(profile.mingStar);
+    return idx >= 0 ? idx : 0;
+  } catch { return 0; }
+}
+
+// 根據時段取得當日卡片（確定性 seed，含人物因素）
 function getCardByPeriod(period) {
   const filtered = ENERGY_CARDS.filter(c => c.period === period);
   if (filtered.length === 0) return ENERGY_CARDS[0];
@@ -123,8 +174,10 @@ function getCardByPeriod(period) {
   const today = new Date();
   const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
   const shichenIdx = Math.floor((today.getHours() + 1) / 2) % 12;
-  // 確定性seed：年內日序 × 31 + 時辰index，確保同一天同一時段同一張卡
-  const seed = ((dayOfYear * 31 + shichenIdx) % filtered.length + filtered.length) % filtered.length;
+
+  // 確定性 seed：年內日序 × 31 + 時辰index + 人物主星 hash
+  const personaSeed = getPersonaSeed();
+  const seed = ((dayOfYear * 31 + shichenIdx + personaSeed * 7) % filtered.length + filtered.length) % filtered.length;
   return filtered[Math.abs(seed)];
 }
 
@@ -202,5 +255,6 @@ export {
   getDailyVibe,
   checkIn,
   hasCheckedIn,
-  getCheckInStreak
+  getCheckInStreak,
+  getPersonaSeed
 };

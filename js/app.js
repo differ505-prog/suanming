@@ -13,9 +13,11 @@ import {
   saveTodayCard as saveCard, getTodayCard as loadCard,
   addWeeklyReview, addReflection, getReflections,
   saveUserBirthData, getUserBirthData,
-  scheduleReflectionReminder, getPendingReminders, clearReminder
+  scheduleReflectionReminder, getPendingReminders, clearReminder,
+  getCurrentProfile, recordProfileUsage
 } from './storage.js';
-import { getDailyVibe, hasCheckedIn, getCheckInStreak, checkIn } from './card.js';
+import { getDailyVibe, hasCheckedIn, getCheckInStreak, checkIn, getPersonaSeed } from './card.js';
+import { initPersonaSystem } from './persona.js';
 
 // ===== 全域狀態 =====
 let currentMode = 'today';
@@ -74,6 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initChartMode();
   loadDashboard();
 
+  // MAPS 初始化
+  initPersonaSystem();
+
   // 如果有今日卡片，直接顯示；否則自動抽取
   const savedCard = getTodayCard();
   if (savedCard) {
@@ -90,6 +95,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const reminder = pending[0];
     showReflectionReminder(reminder);
   }
+
+  // MAPS：監聽人物切換，重新渲染視圖
+  window.addEventListener('personaChanged', () => {
+    const profile = getCurrentProfile();
+    const contextMap = { today: 'daily', decision: 'divination', chart: 'chart' };
+    const mode = document.querySelector('.nav-btn.active')?.dataset.mode;
+    if (profile) recordProfileUsage(profile.id, contextMap[mode] || 'general');
+
+    // 重新渲染今日卡片（人物改變，卡片 seed 跟變）
+    const todayPanel = document.querySelector('[data-panel="today"]');
+    if (todayPanel && !todayPanel.classList.contains('hidden')) {
+      const card = getCurrentCard();
+      showCard(card);
+      saveTodayCard(card);
+    }
+
+    // 刷新命盤面板（如果自動帶入了錯誤的資料）
+    autoFillChartForm();
+
+    // 刷新儀表板
+    loadDashboard();
+  });
 });
 
 // ===== 導航切換 =====
@@ -167,13 +194,13 @@ function showCard(card) {
     </div>
   `;
   currentResult = { card };
-  initTodayMode();
 }
 
-// 個人化稱呼：根據命宮主星生成問候語
+// 個人化稱呼：根據當前人物的命宮主星生成問候語
 function getPersonalGreeting() {
-  if (!userBirthData) return '';
-  const star = userBirthData.mingStar;
+  const profile = getCurrentProfile();
+  const star = profile?.mingStar || userBirthData?.mingStar;
+  if (!star) return '';
   const traits = STAR_TRAITS[star];
   if (!traits) return '';
 
@@ -182,7 +209,6 @@ function getPersonalGreeting() {
     `今日的${star}星人，準備好遇見今天的卦象了`,
     `${star}人專屬的時空能量場，歡迎回來`,
   ];
-  // 用日期作 seed 固定選擇
   const idx = (new Date().getDate() + star.charCodeAt(0)) % greetings.length;
   return greetings[idx];
 }
@@ -387,7 +413,8 @@ function handleDivination() {
     hexagram: result.hexagram.name,
     scenario,
     auspicious: isGood ? '吉' : '兇',
-    tiyong: result.tiyong.relation
+    tiyong: result.tiyong.relation,
+    profileNickname: getCurrentProfile()?.nickname || null
   });
 }
 
@@ -730,6 +757,27 @@ function initChartMode() {
     handleChartCast();
   });
 }
+
+// MAPS：自動帶入當前人物資料到命盤表單
+function autoFillChartForm() {
+  const profile = getCurrentProfile();
+  if (!profile || !profile.birthData?.year) return;
+
+  const { birthData } = profile;
+  const yearEl = document.getElementById('birth-year');
+  const monthEl = document.getElementById('birth-month');
+  const dayEl = document.getElementById('birth-day');
+  const hourEl = document.getElementById('birth-hour');
+  const genderEl = document.getElementById('gender-select');
+
+  if (yearEl && !yearEl.value) yearEl.value = birthData.year || '';
+  if (monthEl && !monthEl.value) monthEl.value = birthData.month || '';
+  if (dayEl && !dayEl.value) dayEl.value = birthData.day || '';
+  if (hourEl && !hourEl.value) hourEl.value = birthData.hour ?? '';
+  if (genderEl && !genderEl.value) genderEl.value = birthData.gender || 'm';
+}
+
+// 命盤面板顯示時自動帶入（由 personaChanged 事件統一觸發，見 DOMContentLoaded 中的監聽器）
 
 function handleChartCast() {
   const year = parseInt(document.getElementById('birth-year').value);

@@ -20,9 +20,104 @@
     
     <!-- 頂部 -->
     <header class="app-header">
-      <h1 class="app-title">梅花易數</h1>
-      <p class="app-subtitle">時間起卦 · 邵雍算法 · 全程無random</p>
+      <div class="header-top">
+        <div class="header-left">
+          <h1 class="app-title">梅花易數</h1>
+          <p class="app-subtitle">時間起卦 · 邵雍算法 · 全程無random</p>
+        </div>
+        <div class="header-right">
+          <!-- MAPS: 當前人物指示器 -->
+          <div id="persona-indicator" class="persona-indicator">
+            <span class="persona-avatar" id="persona-avatar">👤</span>
+            <span class="persona-name" id="persona-name">我</span>
+            <span class="persona-caret">▾</span>
+          </div>
+        </div>
+      </div>
     </header>
+
+    <!-- MAPS: 人物切換下拉面板 -->
+    <div id="persona-panel" class="persona-panel hidden">
+      <div class="persona-panel-header">
+        <span class="persona-panel-title">👂 正在聽</span>
+        <button id="persona-panel-close" class="persona-panel-close">✕</button>
+      </div>
+      <div id="persona-list" class="persona-list"></div>
+      <div class="persona-panel-footer">
+        <button id="persona-add-btn" class="persona-add-btn">
+          <span>＋</span> 新增人物
+        </button>
+      </div>
+    </div>
+    <div id="persona-overlay" class="persona-overlay hidden"></div>
+
+    <!-- MAPS: 新增人物 Modal -->
+    <div id="persona-add-modal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content persona-modal">
+        <div class="modal-header">
+          <h2>新增人物</h2>
+          <button class="modal-close" id="persona-modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1 -->
+          <div class="persona-step active" data-step="1">
+            <div class="step-indicator">步驟 1/3：基本資料</div>
+            <div class="form-group">
+              <label class="form-label">綽號</label>
+              <input type="text" id="new-persona-nickname" placeholder="例如：媽媽、男友、小美">
+            </div>
+            <div class="form-group">
+              <label class="form-label">關係</label>
+              <select id="new-persona-relationship">
+                <option value="self">自己</option>
+                <option value="partner">伴侶</option>
+                <option value="family">家人</option>
+                <option value="friend">朋友</option>
+                <option value="client">客戶</option>
+              </select>
+            </div>
+          </div>
+          <!-- Step 2 -->
+          <div class="persona-step" data-step="2">
+            <div class="step-indicator">步驟 2/3：出生日期</div>
+            <div class="form-group">
+              <label class="form-label">出生日期</label>
+              <div class="row">
+                <input type="number" id="new-persona-year" placeholder="年（例 1990）" min="1900" max="2010">
+                <input type="number" id="new-persona-month" placeholder="月" min="1" max="12">
+                <input type="number" id="new-persona-day" placeholder="日" min="1" max="31">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">出生時辰（24小時制）</label>
+              <input type="number" id="new-persona-hour" placeholder="時（0-23），例：14" min="0" max="23">
+            </div>
+            <div class="form-group">
+              <label class="form-label">性別</label>
+              <select id="new-persona-gender">
+                <option value="m">男</option>
+                <option value="f">女</option>
+              </select>
+            </div>
+            <div class="form-label" style="font-size:0.7rem;color:var(--text-dim)">
+              時辰：子23-01 / 丑01-03 / 寅03-05 / 卯05-07 / 辰07-09 / 巳09-11
+              <br>午11-13 / 未13-15 / 申15-17 / 酉17-19 / 戌19-21 / 亥21-23
+            </div>
+          </div>
+          <!-- Step 3 -->
+          <div class="persona-step" data-step="3">
+            <div class="step-indicator">步驟 3/3：確認命盤</div>
+            <div id="persona-preview" class="persona-preview"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="persona-step-prev" class="btn-secondary hidden">上一步</button>
+          <button id="persona-step-next" class="btn-primary">下一步</button>
+          <button id="persona-save-btn" class="btn-primary hidden">儲存並使用</button>
+        </div>
+      </div>
+    </div>
     
     <!-- 導航 -->
     <nav class="nav">
