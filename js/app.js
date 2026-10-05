@@ -858,13 +858,20 @@ function renderZiweiResult(result, readings) {
     return `${s.name}${badge}`;
   }).join('');
 
+  // === 頂部摘要 ===
+  // 從 iztro 直接取得乾淨的農曆月日（不含重複年份）
+  const rawLunar = result._astrolabe?.rawDates?.lunarDate;
+  const lunarMonthDayStr = rawLunar
+    ? `${rawLunar.lunarMonth}月${rawLunar.lunarDay}日`
+    : (result.lunarDateStr || '').replace(/\d{4}年/, ''); // fallback：移除重複年份
+
   const headerHTML = `
     <div class="chart-header">
       ${mingStars && mingStars.length > 0 ? `<div class="chart-ming-star" onclick="showArchetypeCard('${typeof mingStars[0] === 'string' ? mingStars[0] : mingStars[0]?.name || ''}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStarsForHeader} ⭐</div>` : ''}
       <div class="chart-info-row">
         <div class="chart-info-item" style="flex-basis: 100%;">
-          <span class="ci-label">出生</span>
-          <span class="ci-value">${result.lunarDateStr || ''} ${result.zodiac ? '· ' + result.zodiac + '屬' : ''} ${result.sign ? '· ' + result.sign : ''}</span>
+          <span class="ci-label">農曆</span>
+          <span class="ci-value">${lunarMonthDayStr} ${result.zodiac ? '· ' + result.zodiac + '屬' : ''} ${result.sign ? '· ' + result.sign : ''}</span>
         </div>
         <div class="chart-info-item">
           <span class="ci-label">國曆</span>
@@ -957,13 +964,24 @@ function renderZiweiResult(result, readings) {
   `;
 
   // === 當前大限計算 ===
-  const age = birthData ? new Date().getFullYear() - birthData.year : 30;
-  const ageIndex = Math.min(Math.max(Math.floor(age / 10), 0), 6);
+  // 直接使用 iztro 提供的 startAge 和當前大限名稱（最準確）
+  // 優先用 currentDecadal.startAge；否則從五行局推算 bureauNumber + index*10
   const currentDecadal = result.currentDecadal;
-  const decadalPalaceNames = currentDecadal?.palaceNames || [];
-  const currentDecadalPalace = decadalPalaceNames[ageIndex] || decadalPalaceNames[0] || '命';
-  const decadalAgeStart = Math.floor(age / 10) * 10;
+  const bureauMap = { '水一局':1,'水二局':2,'水三局':3,'木一局':1,'木二局':2,'木三局':3,'金一局':1,'金二局':2,'金三局':3,'土一局':1,'土二局':2,'土三局':3,'火一局':1,'火二局':2,'火三局':3 };
+  const bureau = bureauMap[wuxingJu] || 2;
+  const decadalIdx = currentDecadal?.index ?? 0;
+
+  const decadalAgeStart = (currentDecadal?.startAge != null)
+    ? currentDecadal.startAge
+    : bureau + decadalIdx * 10;
   const decadalAgeEnd = decadalAgeStart + 9;
+
+  // 當前大限宮位：直接用 currentDecadal.name（iztro 提供），不依賴 ageIndex 查表
+  const decadalPalaceNames = currentDecadal?.palaceNames || [];
+  const currentDecadalPalace = currentDecadal?.name
+    || decadalPalaceNames[decadalIdx]
+    || decadalPalaceNames[0]
+    || '命';
 
   const decadalBannerHTML = currentDecadal ? `
     <div class="decadal-banner">

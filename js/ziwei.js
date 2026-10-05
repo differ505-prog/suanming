@@ -228,13 +228,21 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
   // === 大限資料 ===
   const horoscope = astrolabe.horoscope();
   const currentDecadal = horoscope?.decadal || null;
+
+  // 五行局數字 → 起運歲數（水二局=2，以此類推）
+  const bureauNumberMap = { '水一局':1,'水二局':2,'水三局':3,'木一局':1,'木二局':2,'木三局':3,'金一局':1,'金二局':2,'金三局':3,'土一局':1,'土二局':2,'土三局':3,'火一局':1,'火二局':2,'火三局':3 };
+  const bureauNumber = bureauNumberMap[wuxingJu] || 2;
+  const decadalIndex = currentDecadal?.index ?? 0;
+  const decadalStartAge = (currentDecadal?.startAge != null)
+    ? currentDecadal.startAge
+    : bureauNumber + decadalIndex * 10;
+  const decadalEndAge = decadalStartAge + 9;
+
   // 構造完整 12 宮大限名稱（從 decadal 的 index 出發，遍歷 12 宮）
   let decadalPalaceNames = [];
   if (currentDecadal && currentDecadal.palaceNames) {
-    // iztro 的 decadal.palaceNames 是 12 宮對應的「大限宮位名稱」陣列
     decadalPalaceNames = currentDecadal.palaceNames;
   } else if (astrolabe.palaces && astrolabe.palaces.length === 12) {
-    // Fallback: 依序取 12 宮名稱
     decadalPalaceNames = astrolabe.palaces.map(p => PALACE_NAME_MAP[p.name] || p.name);
   }
 
@@ -260,10 +268,12 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     fourHua: fourHuaTable,
     currentDecadal: currentDecadal ? {
       index: currentDecadal.index ?? 0,
-      name: currentDecadal.name || '',
+      name: currentDecadal.name || '',              // 當前大限宮位名（iztro 提供）
       heavenlyStem: currentDecadal.heavenlyStem || '',
       earthlyBranch: currentDecadal.earthlyBranch || '',
-      palaceNames: decadalPalaceNames
+      palaceNames: decadalPalaceNames,
+      startAge: decadalStartAge,                    // 起運歲數（水二局+index×10）
+      ageRange: `${decadalStartAge}-${decadalEndAge}歲`
     } : null,
     _astrolabe: astrolabe
   };
