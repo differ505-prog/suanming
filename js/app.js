@@ -636,9 +636,35 @@ window.snoozeReminder = snoozeReminder;
 window.dismissReminder = dismissReminder;
 
 // ===== 渲染 Archetype 視覺卡 =====
-window.showArchetypeCard = function(starName) {
+window.showArchetypeCard = function(starName, brightness, mutagen) {
   const data = ARCHETYPES[starName];
   if (!data) return;
+
+  // === 亮度 × 四化 → 狀態描述 ===
+  const BRIGHTNESS_DESC = {
+    '廟': '力量充沛，能量完整釋放',
+    '旺': '狀態良好，得地有力',
+    '得': '有所得力，條件具備',
+    '利': '中平狀態，需配合格局',
+    '平': '普通狀態，力量一般',
+    '不': '力量受限，需補足條件',
+    '陷': '失位耗損，需謹慎應對'
+  };
+  const MUTAGEN_DESC = {
+    '祿': '帶來加分與機會',
+    '權': '帶來強化與動力',
+    '科': '帶來名聲與榮耀',
+    '忌': '帶來耗損與課題'
+  };
+
+  const brightDesc = brightness ? (BRIGHTNESS_DESC[brightness] || `亮度：${brightness}`) : null;
+  const mutagenDesc = mutagen ? (MUTAGEN_DESC[mutagen] || `化${mutagen}`) : null;
+  const stateTag = (brightDesc || mutagenDesc)
+    ? `<div class="archetype-state-bar">
+        ${brightDesc ? `<span class="state-tag state-${brightness}">${brightDesc}</span>` : ''}
+        ${mutagenDesc ? `<span class="state-tag state-mutagen">${mutagenDesc}</span>` : ''}
+       </div>`
+    : '';
 
   const modal = document.createElement('div');
   modal.id = 'archetype-modal';
@@ -647,6 +673,7 @@ window.showArchetypeCard = function(starName) {
     <div class="archetype-card">
       <button class="archetype-close" onclick="closeArchetypeCard()">✕</button>
       <div class="archetype-header" style="background:linear-gradient(135deg, ${data.color}20, ${data.colorCodes[2]})">
+        ${stateTag}
         <div class="archetype-symbol" style="font-size:4rem">${data.symbol}</div>
         <div class="archetype-name" style="color:${data.color}">【${starName}】</div>
         <div class="archetype-type">${data.archetype}</div>
@@ -858,6 +885,17 @@ function renderZiweiResult(result, readings) {
     return `${s.name}${badge}`;
   }).join('');
 
+  // 用於人格卡呼叫（取命宮第一顆星的狀態）
+  const primaryMingStar = (mingStars && mingStars.length > 0)
+    ? (typeof mingStars[0] === 'string' ? mingStars[0] : mingStars[0]?.name)
+    : '';
+  const primaryBrightness = (mingStars && mingStars.length > 0)
+    ? (typeof mingStars[0] === 'string' ? '' : (mingStars[0]?.brightness || ''))
+    : '';
+  const primaryMutagen = (mingStars && mingStars.length > 0)
+    ? (typeof mingStars[0] === 'string' ? '' : (mingStars[0]?.mutagen || ''))
+    : '';
+
   // === 頂部摘要 ===
   // 農曆顯示：補上西元年（避免與國曆混淆）
   const rawLunar = result._astrolabe?.rawDates?.lunarDate;
@@ -867,7 +905,7 @@ function renderZiweiResult(result, readings) {
 
   const headerHTML = `
     <div class="chart-header">
-      ${mingStars && mingStars.length > 0 ? `<div class="chart-ming-star" onclick="showArchetypeCard('${typeof mingStars[0] === 'string' ? mingStars[0] : mingStars[0]?.name || ''}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStarsForHeader} ⭐</div>` : ''}
+      ${mingStars && mingStars.length > 0 ? `<div class="chart-ming-star" onclick="showArchetypeCard('${primaryMingStar}', '${primaryBrightness}', '${primaryMutagen}')" style="cursor:pointer" title="點擊查看完整人格卡">命宮主星：${mingStarsForHeader} ⭐</div>` : ''}
       <div class="chart-info-row">
         <div class="chart-info-item" style="flex-basis: 100%;">
           <span class="ci-label">農曆</span>
@@ -921,14 +959,30 @@ function renderZiweiResult(result, readings) {
           return `${s.name}${brightness}${mutagen}`;
         }).join('·')
       : '<span class="empty-palace">空</span>';
+
+    // 計算該宮的輔星與雜曜總數，用於上下文提示
+    const minorCount = (r.minorStars || []).length;
+    const adjCount = (r.adjectiveStars || []).length;
+    const hasExtraStars = minorCount > 0 || adjCount > 0;
+    const extraStarsHint = hasExtraStars
+      ? `<div class="palace-extra-hint">含${minorCount > 0 ? `${minorCount}輔星` : ''}${minorCount > 0 && adjCount > 0 ? ' · ' : ''}${adjCount > 0 ? `${adjCount}雜曜` : ''}</div>`
+      : '';
+
+    // 檢查該宮主星是否有「不」或「陷」的亮度（視為 critical）
+    const hasCritical = (r.stars || []).some(s =>
+      (typeof s === 'string' ? false : (s.brightness === '不' || s.brightness === '陷'))
+    );
+    const criticalClass = hasCritical ? ' has-critical-brightness' : '';
+
     // 十二長生 tooltip
     const tooltipTitle = `${r.palace}宮${r.changsheng12 ? ' · ' + r.changsheng12 : ''}`;
     return `
-      <div class="palace-card ${isMing ? 'palace-ming' : ''}" onclick="openPalaceDetail('${r.di}', '${r.palace}')" data-di="${r.di}" data-palace="${r.palace}" title="${tooltipTitle}">
+      <div class="palace-card ${isMing ? 'palace-ming' : ''}${criticalClass}" onclick="openPalaceDetail('${r.di}', '${r.palace}')" data-di="${r.di}" data-palace="${r.palace}" title="${tooltipTitle}">
         <div class="palace-name">${r.palace}</div>
         <div class="palace-di">${r.di}</div>
         <div class="palace-stars">${starsStr}</div>
         ${r.hua && r.hua.length > 0 ? `<div class="palace-hua">${r.hua.join('·')}</div>` : ''}
+        ${extraStarsHint}
         <div class="palace-expanded hidden">
           ${r.changsheng12 ? `<div class="palace-changsheng">長生位：${r.changsheng12}</div>` : ''}
           <div class="palace-stars-desc">${r.starsDesc || ''}</div>
@@ -1245,16 +1299,70 @@ window.openPalaceDetail = function(di, palaceName) {
   try { surr = astrolabe.surroundedPalaces(palaceIdx); } catch { return; }
   if (!surr) return;
 
+  // 從 astrolabe.palaces[palaceIdx] 取得原生欄位
+  const palaceData = astrolabe.palaces[palaceIdx];
+
+  // === 三層星曜分類 ===
+  const rawMajor = palaceData?.majorStars || [];
+
+  // 第一層：主星（含亮度 + 四化）
+  const majorList = rawMajor
+    .filter(s => s.type === 'major')
+    .map(s => {
+      const hua = s.mutagen
+        ? `<span class="mutagen-inline ${getMutagenClass(typeof s.mutagen === 'string' ? s.mutagen : s.mutagen.type || '')}">${typeof s.mutagen === 'string' ? s.mutagen : s.mutagen.type || ''}</span>`
+        : '';
+      const bright = s.brightness
+        ? `<span class="brightness-badge ${getBrightnessClass(s.brightness)}">${s.brightness}</span>`
+        : '';
+      return `<span class="chip-major">${s.name}${bright}${hua}</span>`;
+    });
+
+  // 第二層：14 輔星（type=lucun/tianma + palace.minorStars[]）
+  const minorRaw = rawMajor.filter(s => ['lucun', 'tianma'].includes(s.type)).map(s => s.name);
+  const minorFromField = (palaceData?.minorStars || []).map(s => s.name || s);
+  const minorList = [...minorRaw, ...minorFromField]
+    .filter((v, i, a) => a.indexOf(v) === i); // 去重
+  const minorChips = minorList.map(s => `<span class="chip-minor">${s}</span>`);
+
+  // 第三層：雜曜（palace.adjectiveStars[]）
+  const adjList = (palaceData?.adjectiveStars || []).map(s => s.name || s);
+  const adjChips = adjList.map(s => `<span class="chip-adj">${s}</span>`);
+
+  // === 博士 / 歲驛 / 喪門（目前未使用的四個欄位）===
+  const boshi = palaceData?.boshi12 || '';
+  const jiangqian = palaceData?.jiangqian12 || '';
+  const suiqian = palaceData?.suiqian12 || '';
+
+  const extraInfoHTML = (boshi || jiangqian || suiqian)
+    ? `<div class="detail-extra-info">
+        ${boshi ? `<span class="extra-tag">博士：${boshi}</span>` : ''}
+        ${jiangqian ? `<span class="extra-tag">歲驛：${jiangqian}</span>` : ''}
+        ${suiqian ? `<span class="extra-tag">喪門：${suiqian}</span>` : ''}
+       </div>`
+    : '';
+
+  // === 三方四正宮位建構 ===
   const buildPalaceHTML = (p) => {
     if (!p) return '';
-    const majorNames = (p.majorStars || []).map(s => s.name);
-    const minorNames = (p.minorStars || []).map(s => s.name + '[附]');
-    const allNames = [...majorNames, ...minorNames];
-    const starsStr = allNames.length > 0 ? allNames.join('、') : '空';
+    const rawM = p.majorStars || [];
+    const majors = rawM.filter(s => s.type === 'major').map(s => {
+      const hua = s.mutagen
+        ? `<span class="mutagen-inline ${getMutagenClass(typeof s.mutagen === 'string' ? s.mutagen : s.mutagen.type || '')}">${typeof s.mutagen === 'string' ? s.mutagen : s.mutagen.type || ''}</span>`
+        : '';
+      const bright = s.brightness
+        ? `<span class="brightness-badge ${getBrightnessClass(s.brightness)}">${s.brightness}</span>`
+        : '';
+      return `<span class="chip-major-sm">${s.name}${bright}${hua}</span>`;
+    });
+    const minors = [...rawM.filter(s => ['lucun', 'tianma'].includes(s.type)).map(s => s.name), ...(p.minorStars || []).map(s => s.name || s)]
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .map(s => `<span class="chip-minor-sm">${s}</span>`);
+
     return `<div class="surr-palace">
       <div class="surr-palace-name">${p.name || ''}</div>
       <div class="surr-palace-di">${p.earthlyBranch || ''}</div>
-      <div class="surr-palace-stars">${starsStr}</div>
+      <div class="surr-palace-stars">${[...majors, ...minors].join(' ')}</div>
     </div>`;
   };
 
@@ -1263,9 +1371,36 @@ window.openPalaceDetail = function(di, palaceName) {
     <div class="palace-detail-modal" id="palace-detail-modal">
       <button class="palace-detail-close" onclick="closePalaceDetail()">✕</button>
       <div class="palace-detail-header">
-        <div class="palace-detail-title">${palaceName}的三方四正</div>
-        <div class="palace-detail-sub">對宮、財帛、官祿（統稱三方四正）</div>
+        <div class="palace-detail-title">${palaceName}</div>
+        <div class="palace-detail-sub">三方四正：對宮、財帛、官祿</div>
       </div>
+
+      <!-- 第一層：主星（含亮度 + 四化）-->
+      <div class="detail-layer">
+        <div class="detail-layer-label">主星</div>
+        <div class="detail-chips">${majorList.join('') || '<span class="detail-empty">空宮</span>'}</div>
+      </div>
+
+      <!-- 第二層：14 輔星 -->
+      ${minorChips.length > 0 ? `
+      <div class="detail-layer">
+        <div class="detail-layer-label">14 輔星</div>
+        <div class="detail-chips">${minorChips.join('')}</div>
+      </div>` : ''}
+
+      <!-- 第三層：雜曜 -->
+      ${adjChips.length > 0 ? `
+      <div class="detail-layer">
+        <div class="detail-layer-label">雜曜</div>
+        <div class="detail-chips">${adjChips.join('')}</div>
+      </div>` : ''}
+
+      <!-- 長生位 + 博士 / 歲驛 / 喪門 -->
+      ${palaceData?.changsheng12 ? `<div class="detail-changsheng">長生位：${palaceData.changsheng12}</div>` : ''}
+      ${extraInfoHTML}
+
+      <div class="detail-divider"></div>
+
       <div class="palace-detail-grid">
         ${buildPalaceHTML(surr.opposite)}
         ${(surr.together || []).map(p => buildPalaceHTML(p)).join('')}

@@ -155,7 +155,9 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     palaces[name] = {
       stars: [],
       fourHua: [],
-      di: ''
+      di: '',
+      minorStars: [],
+      adjectiveStars: []
     };
   }
 
@@ -164,9 +166,10 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     const internalName = PALACE_NAME_MAP[palace.name];
     if (!internalName) continue;
 
-    // 提取主星名稱（攜帶 brightness + mutagen 供渲染層使用）
+    // 提取主星（只取 type === 'major' 的真正主星）
     const majorStars = palace.majorStars || [];
-    palaces[internalName].stars = majorStars.map(s => ({
+    const trueMajorStars = majorStars.filter(s => s.type === 'major');
+    palaces[internalName].stars = trueMajorStars.map(s => ({
       name: s.name,
       brightness: s.brightness || null,
       mutagen: s.mutagen
@@ -175,7 +178,6 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     }));
 
     // 四化星（取星曜的四化標記）
-    // mutagen 可能為字串（'祿'/'權'/'科'/'忌'）或物件 {type, star}
     const fourHua = [];
     for (const star of majorStars) {
       if (star.mutagen) {
@@ -188,8 +190,16 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     // 宮位地支（直接從 iztro palace 取得，最準確）
     palaces[internalName].di = palace.earthlyBranch || '';
 
-    // 副星、輔星（字串格式，供桃花/貴人星統計用）
-    palaces[internalName].minorStars = (palace.minorStars || []).map(s => s.name || s);
+    // 14 輔星：type 為 lucun / tianma 的 + palace.minorStars[] 原生欄位
+    const minorFromMajor = majorStars
+      .filter(s => ['lucun', 'tianma'].includes(s.type))
+      .map(s => s.name);
+    palaces[internalName].minorStars = [
+      ...minorFromMajor,
+      ...(palace.minorStars || []).map(s => s.name || s)
+    ];
+
+    // 雜曜：palace.adjectiveStars[] 原生欄位
     palaces[internalName].adjectiveStars = (palace.adjectiveStars || []).map(s => s.name || s);
 
     // 十二長生位
