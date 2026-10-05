@@ -203,13 +203,19 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     || palaces['命']?.di
     || '子';
 
-  // === 身宮：找到身宮所在的宮位及其主星 ===
-  const shenPalaceName = astrolabe.bodyPalaceName || '疾厄';  // iztro 預設
-  const shenPalace = astrolabe.palaces.find(p =>
-    p.name === shenPalaceName ||
-    PALACE_NAME_MAP[p.name] === shenPalaceName ||
-    p.earthlyBranch === astrolabe.earthlyBranchOfBodyPalace
-  );
+  // === 身宮：根據身宮地支找對應的本命宮位 ===
+  // 關鍵修復：原本用 astrolabe.bodyPalaceName（此欄位不存在，永遠 fallback 到 '疾厄'）
+  // 正確做法：用 astrolabe.earthlyBranchOfBodyPalace 取得身宮所在的地支
+  //          再從 astrolabe.palaces 找該地支對應的宮位，讀取其本命宮位名稱
+  // 紫微斗數身宮鐵律：身宮只會落在命、遷移、財帛、事業、夫妻、福德六宮之一
+  const shenGongDi = astrolabe.earthlyBranchOfBodyPalace || '';
+  const shenPalace = shenGongDi
+    ? astrolabe.palaces.find(p => p.earthlyBranch === shenGongDi)
+    : null;
+  // 將 iztro 宮位名（如「官祿」、「僕役」、「命宮」）對映回內部名稱
+  const shenPalaceName = shenPalace
+    ? (PALACE_NAME_MAP[shenPalace.name] || shenPalace.name)
+    : '—';
   const shenPalaceStars = shenPalace
     ? shenPalace.majorStars.map(s => ({
         name: s.name,
@@ -228,20 +234,26 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
   // === 大限資料 ===
   const horoscope = astrolabe.horoscope();
   const currentDecadal = horoscope?.decadal || null;
-
-  // 五行局數字 → 起運歲數（水二局=2，以此類推）
-  const bureauNumberMap = { '水一局':1,'水二局':2,'水三局':3,'木一局':1,'木二局':2,'木三局':3,'金一局':1,'金二局':2,'金三局':3,'土一局':1,'土二局':2,'土三局':3,'火一局':1,'火二局':2,'火三局':3 };
-  const bureauNumber = bureauNumberMap[wuxingJu] || 2;
   const decadalIndex = currentDecadal?.index ?? 0;
-  const decadalStartAge = (currentDecadal?.startAge != null)
-    ? currentDecadal.startAge
-    : bureauNumber + decadalIndex * 10;
-  const decadalEndAge = decadalStartAge + 9;
 
-  // 構造完整 12 宮大限名稱（從 decadal 的 index 出發，遍歷 12 宮）
+  // 關鍵修復：直接從 astrolabe.palaces[decadalIndex] 取得當前大限的本命宮位名稱
+  // 原本用 currentDecadal.name，但 iztro 的 HoroscopeItem.name 是運限類型字串
+  // （永遠是 '大限'），不是宮位名稱
+  const decadalPalace = astrolabe.palaces[decadalIndex];
+  const decadalPalaceInternalName = decadalPalace
+    ? (PALACE_NAME_MAP[decadalPalace.name] || decadalPalace.name)
+    : '—';
+  const decadalPalaceBranch = decadalPalace?.earthlyBranch || currentDecadal?.earthlyBranch || '';
+
+  // 從該宮位的 decadal.range 取得準確年齡範圍
+  const decadalRange = decadalPalace?.decadal?.range;
+  const decadalStartAge = (decadalRange && decadalRange[0] != null) ? decadalRange[0] : 0;
+  const decadalEndAge = (decadalRange && decadalRange[1] != null) ? decadalRange[1] : 0;
+
+  // 構造完整 12 宮大限名稱（供三方四正標記使用）
   let decadalPalaceNames = [];
   if (currentDecadal && currentDecadal.palaceNames) {
-    decadalPalaceNames = currentDecadal.palaceNames;
+    decadalPalaceNames = currentDecadal.palaceNames.map(n => PALACE_NAME_MAP[n] || n);
   } else if (astrolabe.palaces && astrolabe.palaces.length === 12) {
     decadalPalaceNames = astrolabe.palaces.map(p => PALACE_NAME_MAP[p.name] || p.name);
   }
@@ -263,16 +275,19 @@ function castZiwei(birthYear, birthMonth, birthDay, birthHour, gender = 'male') 
     mingStar,
     mingStars: palaces['命']?.stars || [],
     shenStar,
-    shenPalaceName,          // 身宮所在宮位名（如「疾厄」）
-    shenPalaceStars,         // 身宮主星（物件格式）
+    shenGongDi,                  // 身宮地支（如「戌」）
+    shenPalaceName,              // 身宮本命宮位名（如「夫妻」）
+    shenPalaceStars,             // 身宮主星（物件格式）
     fourHua: fourHuaTable,
     currentDecadal: currentDecadal ? {
-      index: currentDecadal.index ?? 0,
-      name: currentDecadal.name || '',              // 當前大限宮位名（iztro 提供）
+      index: decadalIndex,
       heavenlyStem: currentDecadal.heavenlyStem || '',
       earthlyBranch: currentDecadal.earthlyBranch || '',
+      palaceName: decadalPalaceInternalName,   // 當前大限的本命宮位名（內部名）
+      palaceBranch: decadalPalaceBranch,        // 當前大限的地支
       palaceNames: decadalPalaceNames,
-      startAge: decadalStartAge,                    // 起運歲數（水二局+index×10）
+      startAge: decadalStartAge,                // 起運歲數（從該宮 decadal.range 取得）
+      endAge: decadalEndAge,
       ageRange: `${decadalStartAge}-${decadalEndAge}歲`
     } : null,
     _astrolabe: astrolabe
